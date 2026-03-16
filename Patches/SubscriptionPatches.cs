@@ -28,7 +28,7 @@ namespace ZlothYDances.Patches;
 //For high quality mic for emotes
 public class SubscriptionPatches
 {
-    public static bool enabled = true;
+    public static bool enabled = false;
 
     [HarmonyPatch(typeof(SubscriptionManager), nameof(SubscriptionManager.IsLocalSubscribed))]
     public class IsLocalSubscribed
