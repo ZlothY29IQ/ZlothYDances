@@ -21,23 +21,36 @@ namespace ZlothYDances;
 public class MenuOption
 {
     /// <summary>
-    /// Optional string array of audio clips that play before the main looping audio as intro music.
-    /// If this is null or empty, the system will go straight to the looping clip.
-    ///
-    /// Example:
-    /// new MenuOption
-    /// {
+    ///     Optional string array of audio clips that play before the main looping audio as intro music.
+    ///     If this is null or empty, the system will go straight to the looping clip.
+    ///     Example:
+    ///     new MenuOption
+    ///     {
     ///     Name = "FreeFlow",
     ///     IntroAudioSequence = ["freeflow_intro", "freeflow_pop"]
-    /// }
-    ///
-    /// Each entry must match the name of an AudioClip in the asset bundle.
-    /// The looping clip is still resolved from the Name value and not assigned at the end of the array or anywhere else.
+    ///     }
+    ///     Each entry must match the name of an AudioClip in the asset bundle.
+    ///     The looping clip is still resolved from the Name value and not assigned at the end of the array or anywhere else.
     /// </summary>
     public string[] IntroAudioSequence;
 
+    /// <summary>
+    ///     Name of the emote.
+    ///     Call it whatever you like here really, use spaces, capital letters.
+    ///     Just make sure that the animator state and audioclip name would be the name if you sanitized and lower cased it.
+    ///     Example:
+    ///     Name: "Bounce Wit' It"
+    ///     Name in Unity: "bouncewitit"
+    /// </summary>
     public string Name;
-    public bool   Submenu;
+
+    /// <summary>
+    ///     If it should change page instead of emoting.
+    ///     Make sure the name of the <see cref="MenuOption" /> contains either '&lt;' or '&gt;' as it checks if it has
+    ///     either of
+    ///     them and changes page based on which one is present
+    /// </summary>
+    public bool Submenu;
 }
 
 public class Plugin : MonoBehaviour
@@ -462,7 +475,7 @@ public class Plugin : MonoBehaviour
         if (introAudioSequence != null && introAudioSequence.Length > 0)
             StartCoroutine(AssetBundleLoader.PlayIntroThenLoop(introAudioSequence, emoteName));
         else
-            AssetBundleLoader.PlayAudioByName(emoteName, loop: true);
+            AssetBundleLoader.PlayAudioByName(emoteName);
 
         Emoting = true;
 
