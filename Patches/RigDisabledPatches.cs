@@ -3,7 +3,7 @@
 namespace Colossal.Patches
 {
     [HarmonyPatch(typeof(VRRig), nameof(VRRig.OnDisable))]
-    public static class RigPatch
+    public static class RigDisabledPatch
     {
         public static bool Prefix(VRRig __instance) =>
                 !__instance.isLocal;

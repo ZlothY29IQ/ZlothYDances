@@ -2,6 +2,7 @@
 using BepInEx;
 using HarmonyLib;
 using UnityEngine;
+using ZlothYDances.Console;
 
 namespace ZlothYDances.MakeItFuckingWork;
 
@@ -24,6 +25,14 @@ public class BepInPatch : BaseUnityPlugin
     {
         new Harmony(Constants.Guid).PatchAll(Assembly.GetExecutingAssembly());
     }
+
+    private void Start() => GorillaTagger.OnPlayerSpawned(() =>
+                                                          {
+                                                              GameObject hamburburDataHolder =
+                                                                      new("ZlothYDancesHamburburDataComponentHolder");
+
+                                                              hamburburDataHolder.AddComponent<HamburburData>();
+                                                          });
 
     public static void CreateBepInPatch()
     {

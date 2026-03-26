@@ -1,4 +1,5 @@
 using System.Linq;
+using Colossal;
 using Colossal.MakeItFuckingWork;
 using ExitGames.Client.Photon;
 using GorillaExtensions;
@@ -6,9 +7,8 @@ using HarmonyLib;
 using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
-using ZlothYDances;
 
-namespace Colossal.Patches;
+namespace ZlothYDances.Patches;
 
 [HarmonyPatch(typeof(VRRig), nameof(VRRig.PostTick))]
 public static class RigRotationEmotingPatch
@@ -24,14 +24,15 @@ public static class RigRotationEmotingPatch
         if (!__instance.isLocal || !Plugin.Emoting)
             return;
 
-        //If you want less movement and to be based from the chest then use this one here
+        //If you want less movement and the origin to be based from the chest then use this one here
         hips = AssetBundleLoader.KyleRobot
                                 .transform.Find("ROOT/Hips/Spine1/Spine2");
 
         //Getting lower hip for more movement
         lowerHips = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips");
 
-        if (hips == null) return;
+        if (hips == null || lowerHips == null) 
+            return;
 
         Quaternion zOffset        = Quaternion.Euler(0f, 0f, 90f);
         Quaternion targetRotation = lowerHips.rotation * zOffset;
@@ -56,9 +57,10 @@ public class VRRigSerializeWriteSharedPatches
     // ReSharper disable once UnusedParameter.Local
     private static void Postfix(VRRig __instance)
     {
-        int packedHips = Plugin.Emoting
-                                 ? BitPackUtils.PackQuaternionForNetwork(RigRotationEmotingPatch.currentRotation)
-                                 : BitPackUtils.PackQuaternionForNetwork(VRRig.LocalRig.transform.rotation);
+        if (!Plugin.Emoting)
+            return;
+
+        int packedHips = BitPackUtils.PackQuaternionForNetwork(RigRotationEmotingPatch.currentRotation);
 
         PhotonNetwork.RaiseEvent(
                 RigRotationEmotingPatch.EmoteEventCode,
@@ -92,8 +94,9 @@ public class VRRigSerializeReadSharedPatches
     // ReSharper disable once UnusedMember.Local
     private static bool Prefix(VRRig __instance, InputStruct data)
     {
-        if (!__instance.creator.GetPlayerRef().CustomProperties
-                       .ContainsKey(Plugin.Prop))
+        Hashtable props = __instance.creator.GetPlayerRef().CustomProperties;
+
+        if (!props.ContainsKey(Constants.NetworkKey) || !(bool)props[Constants.NetworkKey])
             return true;
 
         __instance.head.syncRotation.SetValueSafe(BitPackUtils.UnpackQuaternionFromNetwork(data.headRotation));
@@ -188,4 +191,21 @@ public class VRRigSerializeReadSharedPatches
 
         return false;
     }
+
+    //Not yet implemented
+    /*[HarmonyPatch(typeof(VRRig), nameof(VRRig.ShouldUseNewIKMethod))]
+    private class ForceEmoteIK
+    {
+        private static bool Prefix(VRRig __instance, ref bool __result, bool isReceivingNewIKData)
+        {
+            Hashtable props = __instance.creator.GetPlayerRef().CustomProperties;
+
+            if (!props.ContainsKey(Constants.NetworkKey) || !(bool)props[Constants.NetworkKey])
+                return true;
+
+            __result = true;
+
+            return false;
+        }
+    }*/
 }

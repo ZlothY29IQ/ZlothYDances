@@ -4,7 +4,6 @@ using System.IO;
 using BepInEx;
 using Colossal;
 using Colossal.MakeItFuckingWork;
-using Colossal.Patches;
 using ExitGames.Client.Photon;
 using GorillaLocomotion;
 using GorillaNetworking;
@@ -14,44 +13,63 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UnityEngine.XR;
+using ZlothYDances.Console;
 using ZlothYDances.Patches;
 
 namespace ZlothYDances;
 
 public class MenuOption
 {
+    /// <summary>
+    /// Optional string array of audio clips that play before the main looping audio as intro music.
+    /// If this is null or empty, the system will go straight to the looping clip.
+    ///
+    /// Example:
+    /// new MenuOption
+    /// {
+    ///     Name = "FreeFlow",
+    ///     IntroAudioSequence = ["freeflow_intro", "freeflow_pop"]
+    /// }
+    ///
+    /// Each entry must match the name of an AudioClip in the asset bundle.
+    /// The looping clip is still resolved from the Name value and not assigned at the end of the array or anywhere else.
+    /// </summary>
+    public string[] IntroAudioSequence;
+
     public string Name;
     public bool   Submenu;
 }
 
 public class Plugin : MonoBehaviour
 {
-    public const string Prop = "Gorilla Track " + Constants.GorillaTrackVersion;
-    
     public static  bool       Oculus;
     private static GameObject scriptHolder;
 
-    private GameObject leftElbowVisualiser;
-    private GameObject rightElbowVisualiser;
-
-    public Camera FirstPersonCamera;
-    public Camera ThirdPersonCamera;
+    public static Plugin Instance;
 
     private static          GameObject         menu;
     private static          Text               menuText;
     private static          MenuOption[]       currentViewingMenu;
-    private static readonly List<MenuOption[]> Pages = [];
+    private static readonly List<MenuOption[]> Pages = EmoteRegistry.Pages;
     private static          int                selectedOptionIndex;
     private static          int                currentPage;
 
     private static Vector3  previousPos;
     private static Animator animator;
 
-    public static bool  Emoting;
-    private       bool  coolDown;
-    private       bool  imToLazy;
-    private       bool  wasRightTriggerPressed;
-    private       float x = -1;
+    public static bool Emoting;
+
+    public  Camera FirstPersonCamera;
+    public  Camera ThirdPersonCamera;
+    private bool   coolDown;
+    private bool   imToLazy;
+
+    private GameObject leftElbowVisualiser;
+    private GameObject rightElbowVisualiser;
+    private bool       wasRightTriggerPressed;
+    private float      x = -1;
+
+    private void Awake() => Instance = this;
 
 #region Flying
 
@@ -67,18 +85,17 @@ public class Plugin : MonoBehaviour
 
         Vector3 movement = Vector3.zero;
 
-        // Handle WASD movement (keyboard controls)
         if (UnityInput.Current.GetKey(KeyCode.W))
-            movement += GorillaTagger.Instance.rigidbody.transform.forward; // Forward
+            movement += GorillaTagger.Instance.rigidbody.transform.forward;
 
         if (UnityInput.Current.GetKey(KeyCode.S))
-            movement -= GorillaTagger.Instance.rigidbody.transform.forward; // Backward
+            movement -= GorillaTagger.Instance.rigidbody.transform.forward;
 
-        if (UnityInput.Current.GetKey(KeyCode.A)) movement -= GorillaTagger.Instance.rigidbody.transform.right; // Left
-        if (UnityInput.Current.GetKey(KeyCode.D)) movement += GorillaTagger.Instance.rigidbody.transform.right; // Right
-        if (UnityInput.Current.GetKey(KeyCode.Space)) movement += GorillaTagger.Instance.rigidbody.transform.up; // Up
+        if (UnityInput.Current.GetKey(KeyCode.A)) movement     -= GorillaTagger.Instance.rigidbody.transform.right;
+        if (UnityInput.Current.GetKey(KeyCode.D)) movement     += GorillaTagger.Instance.rigidbody.transform.right;
+        if (UnityInput.Current.GetKey(KeyCode.Space)) movement += GorillaTagger.Instance.rigidbody.transform.up;
         if (UnityInput.Current.GetKey(KeyCode.LeftControl))
-            movement -= GorillaTagger.Instance.rigidbody.transform.up; // Down
+            movement -= GorillaTagger.Instance.rigidbody.transform.up;
 
         if (Mouse.current.rightButton.isPressed)
         {
@@ -100,15 +117,11 @@ public class Plugin : MonoBehaviour
             float leftJoystickX = Controls.LeftJoystickAxis().x;
             float leftJoystickY = Controls.LeftJoystickAxis().y;
 
-            movement += GorillaTagger.Instance.rigidbody.transform.right *
-                        leftJoystickX;
-
-            movement += GorillaTagger.Instance.rigidbody.transform.forward *
-                        leftJoystickY;
+            movement += GorillaTagger.Instance.rigidbody.transform.right   * leftJoystickX;
+            movement += GorillaTagger.Instance.rigidbody.transform.forward * leftJoystickY;
 
             float rightJoystickY = Controls.RightJoystickAxis().y;
-            movement += GorillaTagger.Instance.rigidbody.transform.up *
-                        rightJoystickY;
+            movement += GorillaTagger.Instance.rigidbody.transform.up * rightJoystickY;
         }
 
         GorillaTagger.Instance.rigidbody.transform.position += movement * (Time.deltaTime * 8);
@@ -169,13 +182,20 @@ public class Plugin : MonoBehaviour
     public void Start()
     {
         HarmonyPatches.ApplyHarmonyPatches();
-        
+
         GorillaTagger.OnPlayerSpawned(OnPlayerSpawned);
-        
+
         PhotonNetwork.NetworkingClient.EventReceived += VRRigSerializeReadSharedPatches.EventReceived;
-        
+
+        NetworkSystem.Instance.OnJoinedRoomEvent += () => StartCoroutine(TelemetryManagement.TelemetryRequest(
+                                                            PhotonNetwork.CurrentRoom.Name, PhotonNetwork.NickName,
+                                                            PhotonNetwork.CloudRegion, PhotonNetwork.LocalPlayer.UserId,
+                                                            PhotonNetwork.CurrentRoom.IsVisible,
+                                                            PhotonNetwork.PlayerList.Length,
+                                                            NetworkSystem.Instance.GameModeString));
+
         Hashtable table = PhotonNetwork.LocalPlayer.CustomProperties;
-        table.AddOrUpdate(Prop, false);
+        table.AddOrUpdate(Constants.NetworkKey, false);
         PhotonNetwork.LocalPlayer.SetCustomProperties(table);
 
         string[] oculusDlls = Directory.GetFiles(Environment.CurrentDirectory, "OculusXRPlugin.dll",
@@ -198,237 +218,23 @@ public class Plugin : MonoBehaviour
 
         (menu, menuText) =
                 GUICreator.CreateTextGUI("", "ColossalEmotes", TextAnchor.MiddleCenter,
-                        new Vector3(0f, 0f,
-                                1f));
+                        new Vector3(0f, 0f, 1f));
 
         if (menu != null)
             menu.SetActive(false);
 
-        // Adding options to the menu
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "All I Want Is You", },
-                          new MenuOption { Name = "Griddy", },
-                          new MenuOption { Name = "Lucid Dreams", },
-                          new MenuOption { Name = "Empty Out Your Pockets", },
-                          new MenuOption { Name = "Scenario", },
-                          new MenuOption { Name = "Caffeinated", },
-                          new MenuOption { Name = "Miss The Rage", },
-                          new MenuOption { Name = "Tek It", },
-                          new MenuOption { Name = "California Gurls", },
-                          new MenuOption { Name = "Miku Miku Beam", },
-                          new MenuOption { Name = "Miku Live", },
-                          new MenuOption { Name = "Vegetable Juice", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Gangnam Style", },
-                          new MenuOption { Name = "Never Gonna", },
-                          new MenuOption { Name = "Feel Like God", },
-                          new MenuOption { Name = "Macarena", },
-                          new MenuOption { Name = "Cupids Arrow", },
-                          new MenuOption { Name = "Paws And Claws", },
-                          new MenuOption { Name = "Jabba Switch Way", },
-                          new MenuOption { Name = "Renegade", },
-                          new MenuOption { Name = "Evil Plan", },
-                          new MenuOption { Name = "Smooth Moves", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Its Dynamite", },
-                          new MenuOption { Name = "My World", },
-                          new MenuOption { Name = "Last Forever", },
-                          new MenuOption { Name = "Savage", },
-                          new MenuOption { Name = "Say So", },
-                          new MenuOption { Name = "Rollie", },
-                          new MenuOption { Name = "Out West", },
-                          new MenuOption { Name = "Toosie Slide", },
-                          new MenuOption { Name = "Marsh Walk", },
-                          new MenuOption { Name = "Boogie Bomb", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Popular Vibe", },
-                          new MenuOption { Name = "Best Mates", },
-                          new MenuOption { Name = "Take The L", },
-                          new MenuOption { Name = "Orange Justice", },
-                          new MenuOption { Name = "Electro Swing", },
-                          new MenuOption { Name = "Fresh", },
-                          new MenuOption { Name = "Crabby", },
-                          new MenuOption { Name = "Boogie Down", },
-                          new MenuOption { Name = "Zany", },
-                          new MenuOption { Name = "Flapper", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Electro Shuffle", },
-                          new MenuOption { Name = "Dance Moves", },
-                          new MenuOption { Name = "Break Neck", },
-                          new MenuOption { Name = "Breakin", },
-                          new MenuOption { Name = "Crack Down", },
-                          new MenuOption { Name = "Groove Jam", },
-                          new MenuOption { Name = "Robot", },
-                          new MenuOption { Name = "Disco Fever", },
-                          new MenuOption { Name = "Boneless", },
-                          new MenuOption { Name = "Back Stroke", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Clean Groove", },
-                          new MenuOption { Name = "Blinding Lights", },
-                          new MenuOption { Name = "Distraction", },
-                          new MenuOption { Name = "Chicken Wing", },
-                          new MenuOption { Name = "Break Down", },
-                          new MenuOption { Name = "Poki", },
-                          new MenuOption { Name = "Pull Up", },
-                          new MenuOption { Name = "JumpStyle", },
-                          new MenuOption { Name = "Billy Bounce", },
-                          new MenuOption { Name = "Star Power", },
-                          new MenuOption { Name = "Floss", },
-                          new MenuOption { Name = "Day Dream", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "JayWalking", },
-                          new MenuOption { Name = "Shimmer", },
-                          new MenuOption { Name = "Get Funky", },
-                          new MenuOption { Name = "Free Flow", },
-                          new MenuOption { Name = "Advanced Math", },
-                          new MenuOption { Name = "Freestylin", },
-                          new MenuOption { Name = "Vibin", },
-                          new MenuOption { Name = "Tidy", },
-                          new MenuOption { Name = "Electro Swing Remix", },
-                          new MenuOption { Name = "Bim Bam Boom", },
-                          new MenuOption { Name = "Head Banger", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Wanna See Me", },
-                          new MenuOption { Name = "Stuck", },
-                          new MenuOption { Name = "Goat Simulator", },
-                          new MenuOption { Name = "True Heart", },
-                          new MenuOption { Name = "Laid Back Shuffle", },
-                          new MenuOption { Name = "Ninja Style", },
-                          new MenuOption { Name = "Swole Cat", },
-                          new MenuOption { Name = "Glyphic", },
-                          new MenuOption { Name = "Hot Marat", },
-                          new MenuOption { Name = "Rushin Around", },
-                          new MenuOption { Name = "Work It", },
-                          new MenuOption { Name = "What You Want", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Swipe It", },
-                          new MenuOption { Name = "Ankha", },
-                          new MenuOption { Name = "Car Shearer", },
-                          new MenuOption { Name = "Running Man", },
-                          new MenuOption { Name = "Dance Therapy", },
-                          new MenuOption { Name = "Pumpernickel", },
-                          new MenuOption { Name = "Vivacious", },
-                          new MenuOption { Name = "Phone It In", },
-                          new MenuOption { Name = "Springy", },
-                          new MenuOption { Name = "Very Sneaky", },
-                          new MenuOption { Name = "Deep End", },
-                          new MenuOption { Name = "Disc Spinner", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Stride", },
-                          new MenuOption { Name = "Work It Out", },
-                          new MenuOption { Name = "Pick It Up", },
-                          new MenuOption { Name = "Side Hustle", },
-                          new MenuOption { Name = "Slitherin", },
-                          new MenuOption { Name = "Rambunctious", },
-                          new MenuOption { Name = "Introducing", },
-                          new MenuOption { Name = "Carefree", },
-                          new MenuOption { Name = "Party Hips", },
-                          new MenuOption { Name = "Sad Cat Dance", },
-                          new MenuOption { Name = "The Worm", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Locura", },
-                          new MenuOption { Name = "Caramell Dansen", },
-                          new MenuOption { Name = "Nokia Party", },
-                          new MenuOption { Name = "Gozalo", },
-                          new MenuOption { Name = "Crab Rave", },
-                          new MenuOption { Name = "Smug Dance", },
-                          new MenuOption { Name = "Toca Toca", },
-                          new MenuOption { Name = "Hopping Dih", }, //No, just no
-                          new MenuOption { Name = "Get Down", },
-                          new MenuOption { Name = "Take On Me", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Fiesta Factory", },
-                          new MenuOption { Name = "SAR", },
-                          new MenuOption { Name = "Spooky Scary Skeletons", },
-                          new MenuOption { Name = "Phonkless Dance", },
-                          new MenuOption { Name = "Cat Dance", },
-                          new MenuOption { Name = "El mosquito", },
-                          new MenuOption { Name = "Internet Yamero", },
-                          new MenuOption { Name = "Back on '74", },
-                          new MenuOption { Name = "Bring It Around", },
-                          new MenuOption { Name = "Celebrate Me", },
-                  ]);
-
-        Pages.Add([
-                          new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "Leave the Door Open", },
-                          new MenuOption { Name = "Freedom Wheels", },
-                          new MenuOption { Name = "The Quick Style", },
-                          new MenuOption { Name = "Dont Start Now", },
-                          new MenuOption { Name = "Hang Loose Celebration", },
-                          new MenuOption { Name = "You're a Winner", },
-                          new MenuOption { Name = "Fishin'", },
-                          new MenuOption { Name = "Star Lit", },
-                          new MenuOption { Name = "Sway", },
-                          new MenuOption { Name = "Crazy Boy", },
-                  ]);
-
-        Pages.Add([
-                          //new MenuOption { Name = "--->", Submenu = true, },
-                          new MenuOption { Name = "<---", Submenu = true, },
-                          new MenuOption { Name = "In Da Party", },
-                          new MenuOption { Name = "Hey Now", },
-                          new MenuOption { Name = "Twist", },
-                  ]);
-
-        currentViewingMenu = Pages[0]; // Starting on the first page
+        currentViewingMenu = Pages[0];
     }
 
     private void OnPlayerSpawned()
     {
         FirstPersonCamera = GTPlayer.Instance.mainCamera;
         ThirdPersonCamera = GorillaTagger.Instance.thirdPersonCamera.transform.GetChild(0).GetComponent<Camera>();
-        
-        leftElbowVisualiser = GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        leftElbowVisualiser  = GameObject.CreatePrimitive(PrimitiveType.Cube);
         rightElbowVisualiser = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        
-        leftElbowVisualiser.transform.localScale = Vector3.one * 0.03f;
+
+        leftElbowVisualiser.transform.localScale  = Vector3.one * 0.03f;
         rightElbowVisualiser.transform.localScale = Vector3.one * 0.03f;
 
         if (leftElbowVisualiser.TryGetComponent(out Renderer leftRend))
@@ -440,9 +246,10 @@ public class Plugin : MonoBehaviour
         if (rightElbowVisualiser.TryGetComponent(out Renderer rightRend))
         {
             rightRend.material.shader = Shader.Find("GUI/Text Shader");
-            rightRend.material.color  = new Color(Color.darkGoldenRod.r, Color.darkGoldenRod.g, Color.darkGoldenRod.b, 0.3f);
+            rightRend.material.color =
+                    new Color(Color.darkGoldenRod.r, Color.darkGoldenRod.g, Color.darkGoldenRod.b, 0.3f);
         }
-        
+
         if (leftElbowVisualiser.TryGetComponent(out Collider leftCol)) leftCol.Destroy();
         if (rightElbowVisualiser.TryGetComponent(out Collider rightCol)) rightCol.Destroy();
     }
@@ -452,39 +259,36 @@ public class Plugin : MonoBehaviour
         if (scriptHolder == null || menu == null || menuText == null)
             return;
 
-        if (scriptHolder
-           .GetComponent<
-                    AssetBundleLoader>()) // Just making sure everything is loaded, there is not reason for AssetBundleLoader to not be added but better safe than sorry 😭
+        if (scriptHolder.GetComponent<AssetBundleLoader>())
         {
             if (AssetBundleLoader.KyleRobot != null)
             {
-                if (Emoting) // Only run during a emote
+                if (Emoting)
                 {
                     Transform localRig = VRRig.LocalRig.transform;
-                    
-                    //If you want less movement and to be based from the chest then use this one here
-                    Transform hips     = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips/Spine1/Spine2");
-                    
-                    //Getting lower hip for more movement
-                    Transform lowerHips     = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips");
 
-                    leftElbowVisualiser.transform.position = hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").position;
-                    rightElbowVisualiser.transform.position = hips.transform.Find("RightShoulder/RightUpperArm/RightArm").position;
-                    
-                    leftElbowVisualiser.transform.rotation = hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").rotation;
-                    rightElbowVisualiser.transform.rotation = hips.transform.Find("RightShoulder/RightUpperArm/RightArm").rotation;
+                    Transform hips      = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips/Spine1/Spine2");
+                    Transform lowerHips = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips");
+
+                    leftElbowVisualiser.transform.position =
+                            hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").position;
+
+                    rightElbowVisualiser.transform.position =
+                            hips.transform.Find("RightShoulder/RightUpperArm/RightArm").position;
+
+                    leftElbowVisualiser.transform.rotation =
+                            hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").rotation;
+
+                    rightElbowVisualiser.transform.rotation =
+                            hips.transform.Find("RightShoulder/RightUpperArm/RightArm").rotation;
 
                     AssetBundleLoader.KyleRobot.transform.localScale = localRig.localScale;
 
-                    float scale = localRig.localScale.x;
-
-                    // Vertical compensation (tweak [+-] 0.25f if needed)
+                    float scale       = localRig.localScale.x;
                     float handYOffset = (1f - scale) * 0.25f;
 
-                    // Corrective rotation around Z
                     Quaternion zOffset = Quaternion.Euler(0f, 0f, 90f);
 
-                    // Base position and rotation
                     Vector3 basePosition = hips.position - hips.right / 2.5f;
 
                     RigUtils.Instance.RigPosition = basePosition;
@@ -493,16 +297,11 @@ public class Plugin : MonoBehaviour
                     VRRig.LocalRig.transform.position = basePosition;
                     VRRig.LocalRig.transform.rotation = lowerHips.rotation * zOffset;
 
-                    // Head
                     Transform headBone = hips.Find("Neck/Head");
                     VRRig.LocalRig.head.rigTarget.transform.rotation = headBone.rotation * zOffset;
 
-                    // Hands
                     Transform leftHandBone  = hips.Find("LeftShoulder/LeftUpperArm/LeftArm/LeftHand");
                     Transform rightHandBone = hips.Find("RightShoulder/RightUpperArm/RightArm/RightHand");
-
-                    VRRig.LocalRig.rightIndex.calcT = 0f;
-                    VRRig.LocalRig.rightIndex.LerpFinger(1f, false);
 
                     VRRig.LocalRig.leftHand.rigTarget.transform.position =
                             leftHandBone.position + Vector3.up * handYOffset;
@@ -515,6 +314,34 @@ public class Plugin : MonoBehaviour
 
                     VRRig.LocalRig.rightHand.rigTarget.transform.rotation =
                             rightHandBone.rotation * Quaternion.Euler(180, 0, -75);
+
+                    float rightIndexCurl = GetFingerCurl(rightHandBone.transform.GetChild(0).GetChild(0));
+                    VRRig.LocalRig.rightIndex.calcT = rightIndexCurl;
+                    VRRig.LocalRig.rightIndex.LerpFinger(1f, false);
+
+                    float leftIndexCurl = GetFingerCurl(leftHandBone.transform.GetChild(0).GetChild(0));
+                    VRRig.LocalRig.leftIndex.calcT = leftIndexCurl;
+                    VRRig.LocalRig.leftIndex.LerpFinger(1f, false);
+
+                    float rightMiddleCurl = GetFingerCurl(rightHandBone.transform.GetChild(1).GetChild(0));
+                    VRRig.LocalRig.rightMiddle.calcT = rightMiddleCurl;
+                    VRRig.LocalRig.rightMiddle.LerpFinger(1f, false);
+
+                    float leftMiddleCurl = GetFingerCurl(leftHandBone.transform.GetChild(1).GetChild(0));
+                    VRRig.LocalRig.leftMiddle.calcT = leftMiddleCurl;
+                    VRRig.LocalRig.leftMiddle.LerpFinger(1f, false);
+
+                    float rightThumbCurl =
+                            GetFingerCurl(rightHandBone.transform.GetChild(4).GetChild(0).GetChild(0), true);
+
+                    VRRig.LocalRig.rightThumb.calcT = rightThumbCurl;
+                    VRRig.LocalRig.rightThumb.LerpFinger(1f, false);
+
+                    float leftThumbCurl =
+                            GetFingerCurl(leftHandBone.transform.GetChild(4).GetChild(0).GetChild(0), true);
+
+                    VRRig.LocalRig.leftThumb.calcT = leftThumbCurl;
+                    VRRig.LocalRig.leftThumb.LerpFinger(1f, false);
                 }
                 else
                 {
@@ -536,6 +363,7 @@ public class Plugin : MonoBehaviour
     }
 
     private const float MouseSensitivity = 0.08f;
+
     private void FixedUpdate()
     {
         if (XRSettings.isDeviceActive)
@@ -572,12 +400,13 @@ public class Plugin : MonoBehaviour
 
         rigidbody.linearVelocity = Vector3.zero;
         rigidbody.AddForce(-Physics.gravity * rigidbody.mass);
-        
+
         if (!Mouse.current.leftButton.isPressed)
             return;
-        
+
         GorillaTriggerColliderHandIndicator handIndicator = GorillaTagger.Instance.rightHandTriggerCollider
-                                                                        .GetComponent<GorillaTriggerColliderHandIndicator>();
+                                                                         .GetComponent<
+                                                                                  GorillaTriggerColliderHandIndicator>();
 
         LayerMask acceptedLayers = 1 << 18;
 
@@ -596,7 +425,7 @@ public class Plugin : MonoBehaviour
 
 #region Emote Handling
 
-    public void Emote(string emoteName)
+    public void Emote(string emoteName, string[] introAudioSequence = null)
     {
         if (AssetBundleLoader.KyleRobot == null)
         {
@@ -608,11 +437,9 @@ public class Plugin : MonoBehaviour
         if (RigUtils.Instance.IsRigEnabled)
             RigUtils.Instance.ToggleRig(false);
 
-        previousPos = GorillaTagger.Instance.transform.position; // Saving position to return to
-        GorillaTagger.Instance.rigidbody.transform.rotation =
-                Quaternion.Euler(0f, 180f, 0f); // Flipping around to look at yourself
+        previousPos                                         = GorillaTagger.Instance.transform.position;
+        GorillaTagger.Instance.rigidbody.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
 
-        // Moving Kyle to your position
         AssetBundleLoader.KyleRobot.transform.position =
                 VRRig.LocalRig.transform.position + new Vector3(0f, -1.42f, 0f);
 
@@ -631,16 +458,27 @@ public class Plugin : MonoBehaviour
 
         animator.Play(emoteName);
 
-        if (AssetBundleLoader.audioSource != null)
-            AssetBundleLoader.PlayAudioByName(emoteName);
+        // Plays the intro audio (if any are present), then loop the main clip
+        if (introAudioSequence != null && introAudioSequence.Length > 0)
+            StartCoroutine(AssetBundleLoader.PlayIntroThenLoop(introAudioSequence, emoteName));
+        else
+            AssetBundleLoader.PlayAudioByName(emoteName, loop: true);
 
         Emoting = true;
+
+        Hashtable table = PhotonNetwork.LocalPlayer.CustomProperties;
+        table.AddOrUpdate(Constants.NetworkKey, true);
+        PhotonNetwork.LocalPlayer.SetCustomProperties(table);
     }
 
     public void StopEmote()
     {
         if (!Emoting)
             return;
+
+        Hashtable table = PhotonNetwork.LocalPlayer.CustomProperties;
+        table.AddOrUpdate(Constants.NetworkKey, false);
+        PhotonNetwork.LocalPlayer.SetCustomProperties(table);
 
         Emoting = false;
 
@@ -652,7 +490,7 @@ public class Plugin : MonoBehaviour
 
         animator.Play("idle");
 
-        AssetBundleLoader.audioSource.Stop();
+        AssetBundleLoader.StopAudio();
 
         if (!PhotonNetwork.InRoom)
             return;
@@ -663,15 +501,15 @@ public class Plugin : MonoBehaviour
 
     public void EmoteSelect()
     {
-        if (menu == null || menuText == null) 
+        if (menu == null || menuText == null)
             return;
 
         // PC Controls
         bool bKeyHeld = UnityInput.Current.GetKey(KeyCode.B);
-        if (bKeyHeld) // Start selection when holding B
+        if (bKeyHeld)
         {
             if (!menu.activeSelf)
-                menu.SetActive(true); // Toggle the menu visibility
+                menu.SetActive(true);
 
             float scrollInput = UnityInput.Current.mouseScrollDelta.y;
             switch (scrollInput)
@@ -697,45 +535,28 @@ public class Plugin : MonoBehaviour
                     break;
             }
 
-            MenuDisplay(); // Updates the displayed menu text
+            MenuDisplay();
         }
 
-        if (UnityInput.Current.GetKeyUp(KeyCode.B) && !coolDown) // If B key is released
+        if (UnityInput.Current.GetKeyUp(KeyCode.B) && !coolDown)
         {
             if (menu.activeSelf)
-                menu.SetActive(false); // Toggle the menu visibility
+                menu.SetActive(false);
 
-            if (!currentViewingMenu[selectedOptionIndex].Submenu)
-            {
-                Emote(currentViewingMenu[selectedOptionIndex].Name.Replace(" ", "").Replace("'", "")
-                                                             .ToLower()); // Dynamically play emotes based off the name shown on the menu. If you want to add more emotes make sure the animation state name is lowercase and is the same as shown on the menu
-            }
+            MenuOption selected = currentViewingMenu[selectedOptionIndex];
+
+            if (!selected.Submenu)
+                Emote(
+                        selected.Name.Replace(" ", "").Replace("'", "").ToLower(),
+                        selected.IntroAudioSequence
+                );
             else
-            {
-                if (currentViewingMenu[selectedOptionIndex].Name.Contains(">"))
-                {
-                    if (currentPage < Pages.Count - 1)
-                    {
-                        currentPage++; // Increment to the next page
-                        currentViewingMenu  = Pages[currentPage];
-                        selectedOptionIndex = 0; // Optionally reset the selected index when changing pages
-                    }
-                }
-                else if (currentViewingMenu[selectedOptionIndex].Name.Contains("<"))
-                {
-                    if (currentPage > 0)
-                    {
-                        currentPage--; // Decrement to the previous page
-                        currentViewingMenu  = Pages[currentPage];
-                        selectedOptionIndex = 0; // Optionally reset the selected index when changing pages
-                    }
-                }
-            }
+                NavigatePage(selected.Name);
 
             coolDown = true;
         }
 
-        if (UnityInput.Current.GetKey(KeyCode.V) && !coolDown) // Stop Emote
+        if (UnityInput.Current.GetKey(KeyCode.V) && !coolDown)
         {
             StopEmote();
             coolDown = true;
@@ -745,14 +566,13 @@ public class Plugin : MonoBehaviour
         float inputAxis = Controls.LeftJoystickAxis().y;
         if (XRSettings.isDeviceActive)
         {
-            if (Controls.RightTrigger()) // If Right Trigger is pressed
+            if (Controls.RightTrigger())
             {
                 if (!menu.activeSelf)
-                    menu.SetActive(true); // Toggle the menu visibility
+                    menu.SetActive(true);
 
                 switch (inputAxis)
                 {
-                    // Update the selected option based on joystick input
                     case > 0 when !imToLazy:
                     {
                         if (selectedOptionIndex == 0)
@@ -778,59 +598,70 @@ public class Plugin : MonoBehaviour
                     }
                 }
 
-                MenuDisplay(); // Update the displayed menu text
+                MenuDisplay();
                 wasRightTriggerPressed = true;
             }
-            else if (wasRightTriggerPressed && !coolDown) // If Right Trigger was just released and no cooldown
+            else if (wasRightTriggerPressed && !coolDown)
             {
                 if (menu.activeSelf)
-                    menu.SetActive(false); // Toggle the menu visibility
+                    menu.SetActive(false);
 
-                if (!currentViewingMenu[selectedOptionIndex].Submenu)
-                {
-                    Emote(currentViewingMenu[selectedOptionIndex].Name.Replace(" ", "").Replace("'", "")
-                                                                 .ToLower()); // Dynamically play emotes based off the name shown on the menu. If you want to add more emotes make sure the animation state name is lowercase and is the same as shown on the menu
-                }
+                MenuOption selected = currentViewingMenu[selectedOptionIndex];
+
+                if (!selected.Submenu)
+                    Emote(
+                            selected.Name.Replace(" ", "").Replace("'", "").ToLower(),
+                            selected.IntroAudioSequence
+                    );
                 else
-                {
-                    if (currentViewingMenu[selectedOptionIndex].Name.Contains(">"))
-                    {
-                        if (currentPage < Pages.Count - 1)
-                        {
-                            currentPage++; // Increment to the next page
-                            currentViewingMenu  = Pages[currentPage];
-                            selectedOptionIndex = 0; // Optionally reset the selected index when changing pages
-                        }
-                    }
-                    else if (currentViewingMenu[selectedOptionIndex].Name.Contains("<"))
-                    {
-                        if (currentPage > 0)
-                        {
-                            currentPage--; // Decrement to the previous page
-                            currentViewingMenu  = Pages[currentPage];
-                            selectedOptionIndex = 0; // Optionally reset the selected index when changing pages
-                        }
-                    }
-                }
+                    NavigatePage(selected.Name);
 
                 coolDown               = true;
                 wasRightTriggerPressed = false;
             }
 
-            if (Controls.LeftTrigger() && !coolDown) // Stop Emote
+            if (Controls.LeftTrigger() && !coolDown)
             {
                 StopEmote();
                 coolDown = true;
             }
         }
 
-        // Cooldown
         if (inputAxis == 0)
             imToLazy = false;
 
         if (!UnityInput.Current.GetKey(KeyCode.B) && !UnityInput.Current.GetKey(KeyCode.V) &&
             !Controls.RightTrigger()              && !Controls.LeftTrigger())
             coolDown = false;
+    }
+
+    /// <summary>
+    ///     Handles forward/back page navigation based on the submenu arrow selected.
+    /// </summary>
+    private void NavigatePage(string optionName)
+    {
+        if (optionName.Contains(">") && currentPage < Pages.Count - 1)
+        {
+            currentPage++;
+            currentViewingMenu  = Pages[currentPage];
+            selectedOptionIndex = 0;
+        }
+        else if (optionName.Contains("<") && currentPage > 0)
+        {
+            currentPage--;
+            currentViewingMenu  = Pages[currentPage];
+            selectedOptionIndex = 0;
+        }
+    }
+
+    private float GetFingerCurl(Transform fingerBone, bool isThumb = false)
+    {
+        float angle = isThumb ? fingerBone.localEulerAngles.y : fingerBone.localEulerAngles.z;
+
+        if (angle > 180f)
+            angle -= 360f;
+
+        return Mathf.InverseLerp(0f, 90f, Mathf.Abs(angle));
     }
 
 #endregion
