@@ -243,7 +243,7 @@ public class Plugin : MonoBehaviour
     {
         FirstPersonCamera = GTPlayer.Instance.mainCamera;
         ThirdPersonCamera = GorillaTagger.Instance.thirdPersonCamera.transform.GetChild(0).GetComponent<Camera>();
-
+        
         leftElbowVisualiser  = GameObject.CreatePrimitive(PrimitiveType.Cube);
         rightElbowVisualiser = GameObject.CreatePrimitive(PrimitiveType.Cube);
 

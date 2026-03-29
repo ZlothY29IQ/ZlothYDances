@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using BepInEx;
+using Colossal;
 using HarmonyLib;
 using UnityEngine;
 using ZlothYDances.Console;
@@ -19,7 +20,7 @@ internal class OnGameInit
 [BepInPlugin(Constants.Guid, Constants.Name, Constants.Version)]
 public class BepInPatch : BaseUnityPlugin
 {
-    private static GameObject gameob;
+    private static GameObject gameObjections;
 
     private BepInPatch()
     {
@@ -36,11 +37,11 @@ public class BepInPatch : BaseUnityPlugin
 
     public static void CreateBepInPatch()
     {
-        if (gameob == null)
-            gameob = new GameObject();
+        if (gameObjections == null)
+            gameObjections = new GameObject();
 
-        gameob.name = "ColossalEmotes";
-        gameob.AddComponent<Plugin>();
-        DontDestroyOnLoad(gameob);
+        gameObjections.name = "ColossalEmotes";
+        gameObjections.AddComponent<Plugin>();
+        DontDestroyOnLoad(gameObjections);
     }
 }

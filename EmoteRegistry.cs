@@ -225,6 +225,7 @@ public static class EmoteRegistry
 
             // Page 14
             [
+                    new MenuOption { Name = "--->", Submenu = true, },
                     new MenuOption { Name = "<---", Submenu = true, },
                     new MenuOption { Name = "In Da Party", },
                     new MenuOption { Name = "Hey Now", },
@@ -235,6 +236,13 @@ public static class EmoteRegistry
                     new MenuOption { Name = "Entranced", },
                     new MenuOption { Name = "Mask Off", },
                     new MenuOption { Name = "Bounce Wit' It", },
+                    new MenuOption { Name = "Signature Shuffle", },
+            ],
+            
+            //Page 15
+            [
+                            new MenuOption { Name = "<---", Submenu = true, },
+                            new MenuOption { Name = "Switch Step", },
             ],
     ];
 }

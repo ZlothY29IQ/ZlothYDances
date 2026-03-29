@@ -193,10 +193,11 @@ public class VRRigSerializeReadSharedPatches
     }
 
     //Not yet implemented
-    /*[HarmonyPatch(typeof(VRRig), nameof(VRRig.ShouldUseNewIKMethod))]
+    /*
+    [HarmonyPatch(typeof(VRRig), nameof(VRRig.ShouldUseNewIKMethod))]
     private class ForceEmoteIK
     {
-        private static bool Prefix(VRRig __instance, ref bool __result, bool isReceivingNewIKData)
+        private static bool Prefix(VRRig __instance, ref bool __result)
         {
             Hashtable props = __instance.creator.GetPlayerRef().CustomProperties;
 
@@ -207,5 +208,6 @@ public class VRRigSerializeReadSharedPatches
 
             return false;
         }
-    }*/
+    }
+    */
 }
