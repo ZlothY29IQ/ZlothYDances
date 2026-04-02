@@ -197,9 +197,7 @@ public class Plugin : MonoBehaviour
         HarmonyPatches.ApplyHarmonyPatches();
 
         GorillaTagger.OnPlayerSpawned(OnPlayerSpawned);
-
-        PhotonNetwork.NetworkingClient.EventReceived += VRRigSerializeReadSharedPatches.EventReceived;
-
+        
         NetworkSystem.Instance.OnJoinedRoomEvent += () => StartCoroutine(TelemetryManagement.TelemetryRequest(
                                                             PhotonNetwork.CurrentRoom.Name, PhotonNetwork.NickName,
                                                             PhotonNetwork.CloudRegion, PhotonNetwork.LocalPlayer.UserId,
@@ -278,6 +276,9 @@ public class Plugin : MonoBehaviour
             {
                 if (Emoting)
                 {
+                    if (!GTPlayerTransform.UseNetRotation)
+                        GTPlayerTransform.UseNetRotation = true;
+                    
                     Transform localRig = VRRig.LocalRig.transform;
 
                     Transform hips      = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips/Spine1/Spine2");
@@ -303,12 +304,14 @@ public class Plugin : MonoBehaviour
                     Quaternion zOffset = Quaternion.Euler(0f, 0f, 90f);
 
                     Vector3 basePosition = hips.position - hips.right / 2.5f;
+                    
+                    Quaternion targetRotation = lowerHips.rotation * zOffset;
 
                     RigUtils.Instance.RigPosition = basePosition;
-                    RigUtils.Instance.RigRotation = lowerHips.rotation;
+                    RigUtils.Instance.RigRotation = targetRotation;
 
                     VRRig.LocalRig.transform.position = basePosition;
-                    VRRig.LocalRig.transform.rotation = lowerHips.rotation * zOffset;
+                    VRRig.LocalRig.transform.rotation = targetRotation;
 
                     Transform headBone = hips.Find("Neck/Head");
                     VRRig.LocalRig.head.rigTarget.transform.rotation = headBone.rotation * zOffset;
