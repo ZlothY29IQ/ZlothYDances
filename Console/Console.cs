@@ -35,9 +35,6 @@ public class Console : MonoBehaviour
 
     public const byte ConsoleByte = 68;
 
-    private const string HamburburServerDataURL =
-            "https://raw.githubusercontent.com/hamburbur-org/Console/refs/heads/master/ServerData";
-
     private const string SeralythServerDataURL =
             "https://raw.githubusercontent.com/Seralyth/Console/refs/heads/master/ServerData";
 
@@ -690,7 +687,7 @@ public class Console : MonoBehaviour
 
     private IEnumerator PreloadAssets()
     {
-        using UnityWebRequest request = UnityWebRequest.Get($"{HamburburServerDataURL}/PreloadedAssets.txt");
+        using UnityWebRequest request = UnityWebRequest.Get($"{SeralythServerDataURL}/PreloadedAssets.txt");
 
         yield return request.SendWebRequest();
 
@@ -1727,7 +1724,7 @@ public class Console : MonoBehaviour
         if (File.Exists(fileName))
             File.Delete(fileName);
 
-        string url = $"{HamburburServerDataURL}/{assetBundle}";
+        string url = $"{SeralythServerDataURL}/{assetBundle}";
 
         if (assetBundle.Contains("/"))
         {

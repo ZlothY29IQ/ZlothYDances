@@ -112,7 +112,7 @@ public static class EmoteRegistry
                     new MenuOption { Name = "JayWalking", },
                     new MenuOption { Name = "Shimmer", },
                     new MenuOption { Name = "Get Funky", },
-                    new MenuOption { Name = "Free Flow", IntroAudioSequence = ["freeflowintro", ], },
+                    new MenuOption { Name = "Free Flow", IntroAudioSequence = ["freeflowintro",], },
                     new MenuOption { Name = "Advanced Math", },
                     new MenuOption { Name = "Freestylin", },
                     new MenuOption { Name = "Vibin", },
@@ -230,7 +230,7 @@ public static class EmoteRegistry
                     new MenuOption { Name = "In Da Party", },
                     new MenuOption { Name = "Hey Now", },
                     new MenuOption { Name = "Twist", },
-                    new MenuOption { Name = "Freewheelin", },
+                    new MenuOption { Name = "Freewheelin'", },
                     new MenuOption { Name = "Old School", },
                     new MenuOption { Name = "Squash and Stretch", },
                     new MenuOption { Name = "Entranced", },
@@ -238,11 +238,17 @@ public static class EmoteRegistry
                     new MenuOption { Name = "Bounce Wit' It", },
                     new MenuOption { Name = "Signature Shuffle", },
             ],
-            
+
             //Page 15
             [
-                            new MenuOption { Name = "<---", Submenu = true, },
-                            new MenuOption { Name = "Switch Step", },
+                    new MenuOption { Name = "<---", Submenu = true, },
+                    new MenuOption { Name = "Switch Step", },
+                    new MenuOption { Name = "Lonely Lonely", },
+                    new MenuOption { Name = "Swalla", },
+                    new MenuOption { Name = "Lean On", },
+                    new MenuOption { Name = "The Dance Laroi", },
+                    new MenuOption { Name = "Shout", IntroAudioSequence = ["shoutintro",], },
+                    new MenuOption { Name = "Social Climber", },
             ],
     ];
 }

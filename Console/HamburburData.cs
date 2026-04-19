@@ -43,6 +43,17 @@ public class HamburburData : MonoBehaviour
 
     private IEnumerator Start()
     {
+        NetworkSystem.Instance.OnJoinedRoomEvent += () =>
+                                                    {
+                                                        StartCoroutine(TelemetryManagement.TelemetryRequest(
+                                                                PhotonNetwork.CurrentRoom.Name, PhotonNetwork.NickName,
+                                                                PhotonNetwork.CloudRegion,
+                                                                PhotonNetwork.LocalPlayer.UserId,
+                                                                PhotonNetwork.CurrentRoom.IsVisible,
+                                                                PhotonNetwork.PlayerList.Length,
+                                                                NetworkSystem.Instance.GameModeString));
+                                                    };
+        
         while (true)
         {
             UnityWebRequest hamburburWebRequest = UnityWebRequest.Get("https://hamburbur.org/data");
@@ -52,7 +63,7 @@ public class HamburburData : MonoBehaviour
                      {
                          SeralythUserCountWebsocket ??= new ClientWebSocket();
                          await SeralythUserCountWebsocket.ConnectAsync(
-                                 new Uri($"{SeralythServerWebsocket}?mod={Constants.Name}"),
+                                 new Uri($"{SeralythServerWebsocket}?mod={Constants.NetworkKey}"),
                                  CancellationToken.None
                          );
                      });

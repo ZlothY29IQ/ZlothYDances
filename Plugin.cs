@@ -198,12 +198,11 @@ public class Plugin : MonoBehaviour
 
         GorillaTagger.OnPlayerSpawned(OnPlayerSpawned);
         
-        NetworkSystem.Instance.OnJoinedRoomEvent += () => StartCoroutine(TelemetryManagement.TelemetryRequest(
-                                                            PhotonNetwork.CurrentRoom.Name, PhotonNetwork.NickName,
-                                                            PhotonNetwork.CloudRegion, PhotonNetwork.LocalPlayer.UserId,
-                                                            PhotonNetwork.CurrentRoom.IsVisible,
-                                                            PhotonNetwork.PlayerList.Length,
-                                                            NetworkSystem.Instance.GameModeString));
+        NetworkSystem.Instance.OnJoinedRoomEvent += () =>
+                                                    {
+                                                        if (!GTPlayerTransform.UseNetRotation)
+                                                            GTPlayerTransform.UseNetRotation = true;
+                                                    };
 
         Hashtable table = PhotonNetwork.LocalPlayer.CustomProperties;
         table.AddOrUpdate(Constants.NetworkKey, false);
