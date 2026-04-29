@@ -5,10 +5,11 @@ using Photon.Pun;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using ZlothYDances;
 
 namespace Colossal;
 
-internal class FinLoader : MonoBehaviour
+internal class PromotionManager : MonoBehaviour
 {
     private GameObject      imageObj;
     private GameObject      stumpObj;
@@ -35,18 +36,30 @@ internal class FinLoader : MonoBehaviour
         Canvas canvas = stumpObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         CanvasScaler scaler = stumpObj.AddComponent<CanvasScaler>();
-        scaler.dynamicPixelsPerUnit = 10f;
+        scaler.dynamicPixelsPerUnit = 20f;
         stumpObj.AddComponent<GraphicRaycaster>();
 
         RectTransform canvasRect = stumpObj.GetComponent<RectTransform>();
         canvasRect.sizeDelta          = new Vector2(2f, 2f);
-        stumpObj.transform.position   = new Vector3(-66.9419f, 12.35f, -82.6273f);
-        stumpObj.transform.localScale = Vector3.one * 0.003f;
+        stumpObj.transform.position   = new Vector3(-66.9419f, 13f, -82.6273f);
+        stumpObj.transform.localScale = Vector3.one * 0.002f;
         stumpObj.transform.Rotate(0f, 180f, 0f);
+        
+        GameObject bgObj = new("Background");
+        bgObj.transform.SetParent(stumpObj.transform, false);
 
-        textObj = new GameObject("FinText").AddComponent<TextMeshProUGUI>();
+        Image bgImage = bgObj.AddComponent<Image>();
+        bgImage.color         = new Color(0f, 0f, 0f, 0.8f);
+        bgImage.raycastTarget = false;
+
+        RectTransform bgRect = bgObj.GetComponent<RectTransform>();
+        bgRect.sizeDelta        = new Vector2(400f, 300f);
+        bgRect.localScale       = Vector3.one;
+        bgRect.anchoredPosition = Vector2.zero;
+
+        textObj = new GameObject("Text").AddComponent<TextMeshProUGUI>();
         textObj.transform.SetParent(stumpObj.transform, false);
-        textObj.font = LoadFont("comic");
+        textObj.font = AssetBundleLoader.LoadFont("comicbdSDF");
         textObj.text =
                 "<color=blue>ZlothY Dances</color>\n<size=50%>(Reworked Colossal Emotes)</size>\n<color=white>Made By</color> <color=purple>ZlothY</color>";
 
@@ -58,36 +71,25 @@ internal class FinLoader : MonoBehaviour
         textRect.sizeDelta        = new Vector2(400f, 200f);
 
         Texture2D tex = LoadEmbeddedImage("emote.png");
-        if (tex != null)
-        {
-            imageObj = new GameObject("EmoteIcon");
-            imageObj.transform.SetParent(stumpObj.transform, false);
-            uiImage = imageObj.AddComponent<Image>();
 
-            RectTransform imgRect = imageObj.GetComponent<RectTransform>();
-
-            float targetHeight = 100f;
-            float aspect       = (float)tex.width / tex.height;
-            float targetWidth  = targetHeight     * aspect * 1f;
-
-            imgRect.sizeDelta        = new Vector2(targetWidth, targetHeight);
-            imgRect.anchoredPosition = new Vector2(0f,          80f);
-
-            Sprite sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
-            uiImage.sprite = sprite;
-        }
-
-        GameObject fin = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        fin.transform.localScale = new Vector3(0.8f,    0.9f, 0.0001f);
-        fin.transform.position   = new Vector3(-64.72f, 12f,  -84.72f);
-        fin.transform.rotation   = Quaternion.Euler(0f, 271.63f, 0f);
-
-        if (!fin.TryGetComponent(out Renderer renderer))
+        if (tex == null)
             return;
 
-        renderer.material.shader      = Shader.Find("GorillaTag/UberShader");
-        renderer.material.mainTexture = LoadEmbeddedImage("fin.png");
-        renderer.material.EnableKeyword("_USE_TEXTURE");
+        imageObj = new GameObject("EmoteIcon");
+        imageObj.transform.SetParent(stumpObj.transform, false);
+        uiImage = imageObj.AddComponent<Image>();
+
+        RectTransform imgRect = imageObj.GetComponent<RectTransform>();
+
+        float targetHeight = 100f;
+        float aspect       = (float)tex.width / tex.height;
+        float targetWidth  = targetHeight     * aspect * 1f;
+
+        imgRect.sizeDelta        = new Vector2(targetWidth, targetHeight);
+        imgRect.anchoredPosition = new Vector2(0f,          80f);
+
+        Sprite sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+        uiImage.sprite = sprite;
     }
 
     private Texture2D LoadEmbeddedImage(string name)

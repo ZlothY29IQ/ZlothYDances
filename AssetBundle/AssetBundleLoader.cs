@@ -7,7 +7,7 @@ using Photon.Voice.Unity;
 using TMPro;
 using UnityEngine;
 
-namespace Colossal;
+namespace ZlothYDances;
 
 internal class AssetBundleLoader : MonoBehaviour
 {
@@ -27,9 +27,9 @@ internal class AssetBundleLoader : MonoBehaviour
 
     private static Coroutine introCoroutine;
 
-    private static AssetBundleLoader _instance;
+    private static AssetBundleLoader instance;
 
-    public void Awake() => _instance = this;
+    public void Awake() => instance = this;
 
     public void Start()
     {
@@ -69,6 +69,9 @@ internal class AssetBundleLoader : MonoBehaviour
 
     private void OnGUI()
     {
+        if (!Constants.TrackingDebug)
+            return;
+        
         string info = $"Pos: {playerPosition.x:F2}, {playerPosition.y:F2}, {playerPosition.z:F2}\n" +
                       $"Rot: {playerRotation.eulerAngles.x:F2}, {playerRotation.eulerAngles.y:F2}, {playerRotation.eulerAngles.z:F2}";
 
@@ -119,17 +122,11 @@ internal class AssetBundleLoader : MonoBehaviour
 
     public static TMP_FontAsset LoadFont(string name)
     {
-        Stream manifestResourceStream = Assembly.GetExecutingAssembly()
-                                                .GetManifestResourceStream("ZlothYDances.AssetBundle." + name + ".ttf");
+        if (bundle != null)
+            return bundle.LoadAsset<TMP_FontAsset>(name);
 
-        byte[] array = new byte[manifestResourceStream.Length];
-        manifestResourceStream.Read(array, 0, array.Length);
-        string text = Path.Combine(Application.temporaryCachePath, "TempFont.ttf");
-        File.WriteAllBytes(text, array);
-        TMP_FontAsset result = TMP_FontAsset.CreateFontAsset(new Font(text));
-        manifestResourceStream?.Dispose();
-
-        return result;
+        Font          font    = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return TMP_FontAsset.CreateFontAsset(font);
     }
     
     public static void PlayAudioByName(string audioClipName, bool loop = true)
@@ -162,7 +159,7 @@ internal class AssetBundleLoader : MonoBehaviour
     
     public static IEnumerator PlayIntroThenLoop(string[] introSequence, string mainClipName)
     {
-        if (_instance == null)
+        if (instance == null)
         {
             Debug.LogError("[EMOTE] AssetBundleLoader instance is null, cannot start coroutine.");
             yield break;
@@ -170,11 +167,11 @@ internal class AssetBundleLoader : MonoBehaviour
 
         if (introCoroutine != null)
         {
-            _instance.StopCoroutine(introCoroutine);
+            instance.StopCoroutine(introCoroutine);
             introCoroutine = null;
         }
 
-        introCoroutine = _instance.StartCoroutine(RunIntroThenLoop(introSequence, mainClipName));
+        introCoroutine = instance.StartCoroutine(RunIntroThenLoop(introSequence, mainClipName));
     }
 
     private static IEnumerator RunIntroThenLoop(string[] introSequence, string mainClipName)
@@ -216,9 +213,9 @@ internal class AssetBundleLoader : MonoBehaviour
     }
     public static void StopAudio()
     {
-        if (_instance != null && introCoroutine != null)
+        if (instance != null && introCoroutine != null)
         {
-            _instance.StopCoroutine(introCoroutine);
+            instance.StopCoroutine(introCoroutine);
             introCoroutine = null;
         }
 

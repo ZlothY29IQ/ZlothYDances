@@ -1,12 +1,5 @@
-using System.Linq;
-using Colossal;
 using Colossal.MakeItFuckingWork;
-using ExitGames.Client.Photon;
-using GorillaExtensions;
-using GorillaLocomotion;
 using HarmonyLib;
-using Photon.Pun;
-using Photon.Realtime;
 using UnityEngine;
 
 namespace ZlothYDances.Patches;
@@ -32,7 +25,7 @@ public static class RigRotationEmotingPatch
         //Getting lower hip for more movement
         lowerHips = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips");
 
-        if (hips == null || lowerHips == null) 
+        if (hips == null || lowerHips == null)
             return;
 
         Quaternion zOffset        = Quaternion.Euler(0f, 0f, 90f);
@@ -44,8 +37,8 @@ public static class RigRotationEmotingPatch
                 Time.deltaTime * RotationSpeed
         );
 
-        __instance.transform.rotation    = currentRotation;
-        RigUtils.Instance.RigRotation    = currentRotation;
+        __instance.transform.rotation = currentRotation;
+        RigUtils.Instance.RigRotation = currentRotation;
     }
 }
 

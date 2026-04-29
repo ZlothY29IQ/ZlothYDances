@@ -1,5 +1,7 @@
-﻿using UnityEngine;
+﻿using TMPro;
+using UnityEngine;
 using UnityEngine.UI;
+using ZlothYDances;
 
 namespace Colossal;
 
@@ -23,25 +25,25 @@ internal class GUICreator : MonoBehaviour
 
         GameObject menuTextObj = new();
         menuTextObj.transform.SetParent(HUDObj.transform);
-        Text MenuText = menuTextObj.AddComponent<Text>();
-        MenuText.text            = text;
-        MenuText.fontSize        = 10;
-        MenuText.font            = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        MenuText.color           = Color.dodgerBlue;
-        MenuText.supportRichText = true;
-        //MenuText.font = AssetBundleLoader.LoadFont("comic").sourceFontFile;
+        Text menuText = menuTextObj.AddComponent<Text>();
+        menuText.text             = text;
+        menuText.fontSize         = 9;
+        menuText.verticalOverflow = VerticalWrapMode.Overflow;
+        menuText.color           = Color.dodgerBlue;
+        menuText.supportRichText = true;
+        menuText.font = AssetBundleLoader.LoadFont("jbmono").sourceFontFile;
 
-        MenuText.rectTransform.sizeDelta     = new Vector2(260, 180);
-        MenuText.rectTransform.localScale    = new Vector3(0.01f, 0.01f, 1f);
-        MenuText.rectTransform.localPosition = loctrans;
-        MenuText.material                    = new Material(Shader.Find("GUI/Text Shader"));
-        MenuText.alignment                   = alignment;
+        menuText.rectTransform.sizeDelta     = new Vector2(260, 180);
+        menuText.rectTransform.localScale    = new Vector3(0.01f, 0.01f, 1f);
+        menuText.rectTransform.localPosition = loctrans;
+        menuText.material                    = new Material(Shader.Find("GUI/Text Shader"));
+        menuText.alignment                   = alignment;
 
         // Set the parent and adjust for camera position
         HUDObj.transform.SetParent(Camera.main.transform, false);
         HUDObj.transform.localPosition = new Vector3(0f, 0f, 1f);
         HUDObj.transform.localRotation = Quaternion.identity;
 
-        return (HUDObj, MenuText);
+        return (HUDObj, menuText);
     }
 }

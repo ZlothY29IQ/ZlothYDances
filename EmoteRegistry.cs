@@ -241,6 +241,7 @@ public static class EmoteRegistry
 
             //Page 15
             [
+                    new MenuOption { Name = "--->", Submenu = true, },
                     new MenuOption { Name = "<---", Submenu = true, },
                     new MenuOption { Name = "Switch Step", },
                     new MenuOption { Name = "Lonely Lonely", },
@@ -249,6 +250,16 @@ public static class EmoteRegistry
                     new MenuOption { Name = "The Dance Laroi", },
                     new MenuOption { Name = "Shout", IntroAudioSequence = ["shoutintro",], },
                     new MenuOption { Name = "Social Climber", },
+                    new MenuOption { Name = "Houdini", },
+                    new MenuOption { Name = "Feel It", IntroAudioSequence = ["feelitintro",], },
+                    new MenuOption { Name = "Dancin' Domino", },
+            ],
+
+            //Page 16
+            [
+                    new MenuOption { Name = "<---", Submenu = true, },
+                    new MenuOption { Name = "The Look", },
+                    new MenuOption { Name = "Bye Bye Bye", IntroAudioSequence = ["byebyebyeintro",], },
             ],
     ];
 }

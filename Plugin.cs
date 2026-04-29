@@ -13,8 +13,9 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UnityEngine.XR;
-using ZlothYDances.Console;
 using ZlothYDances.Patches;
+
+// ReSharper disable HeuristicUnreachableCode
 
 namespace ZlothYDances;
 
@@ -197,7 +198,7 @@ public class Plugin : MonoBehaviour
         HarmonyPatches.ApplyHarmonyPatches();
 
         GorillaTagger.OnPlayerSpawned(OnPlayerSpawned);
-        
+
         NetworkSystem.Instance.OnJoinedRoomEvent += () =>
                                                     {
                                                         if (!GTPlayerTransform.UseNetRotation)
@@ -221,8 +222,7 @@ public class Plugin : MonoBehaviour
                     name = "ColossalEmotes (ScriptHolder)",
             };
 
-            scriptHolder.AddComponent<AssetBundleLoader>();
-            scriptHolder.AddComponent<FinLoader>();
+            scriptHolder.AddComponent<PromotionManager>();
             scriptHolder.AddComponent<RigUtils>();
         }
 
@@ -240,28 +240,31 @@ public class Plugin : MonoBehaviour
     {
         FirstPersonCamera = GTPlayer.Instance.mainCamera;
         ThirdPersonCamera = GorillaTagger.Instance.thirdPersonCamera.transform.GetChild(0).GetComponent<Camera>();
-        
-        leftElbowVisualiser  = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        rightElbowVisualiser = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-        leftElbowVisualiser.transform.localScale  = Vector3.one * 0.03f;
-        rightElbowVisualiser.transform.localScale = Vector3.one * 0.03f;
-
-        if (leftElbowVisualiser.TryGetComponent(out Renderer leftRend))
+        if (Constants.TrackingDebug)
         {
-            leftRend.material.shader = Shader.Find("GUI/Text Shader");
-            leftRend.material.color  = new Color(Color.darkGreen.r, Color.darkGreen.g, Color.darkGreen.b, 0.3f);
-        }
+            leftElbowVisualiser  = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rightElbowVisualiser = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-        if (rightElbowVisualiser.TryGetComponent(out Renderer rightRend))
-        {
-            rightRend.material.shader = Shader.Find("GUI/Text Shader");
-            rightRend.material.color =
-                    new Color(Color.darkGoldenRod.r, Color.darkGoldenRod.g, Color.darkGoldenRod.b, 0.3f);
-        }
+            leftElbowVisualiser.transform.localScale  = Vector3.one * 0.03f;
+            rightElbowVisualiser.transform.localScale = Vector3.one * 0.03f;
 
-        if (leftElbowVisualiser.TryGetComponent(out Collider leftCol)) leftCol.Destroy();
-        if (rightElbowVisualiser.TryGetComponent(out Collider rightCol)) rightCol.Destroy();
+            if (leftElbowVisualiser.TryGetComponent(out Renderer leftRend))
+            {
+                leftRend.material.shader = Shader.Find("GUI/Text Shader");
+                leftRend.material.color  = new Color(Color.darkGreen.r, Color.darkGreen.g, Color.darkGreen.b, 0.3f);
+            }
+
+            if (rightElbowVisualiser.TryGetComponent(out Renderer rightRend))
+            {
+                rightRend.material.shader = Shader.Find("GUI/Text Shader");
+                rightRend.material.color =
+                        new Color(Color.darkGoldenRod.r, Color.darkGoldenRod.g, Color.darkGoldenRod.b, 0.3f);
+            }
+
+            if (leftElbowVisualiser.TryGetComponent(out Collider leftCol)) leftCol.Destroy();
+            if (rightElbowVisualiser.TryGetComponent(out Collider rightCol)) rightCol.Destroy();
+        }
     }
 
     public void Update()
@@ -269,111 +272,113 @@ public class Plugin : MonoBehaviour
         if (scriptHolder == null || menu == null || menuText == null)
             return;
 
-        if (scriptHolder.GetComponent<AssetBundleLoader>())
+        if (AssetBundleLoader.KyleRobot != null)
         {
-            if (AssetBundleLoader.KyleRobot != null)
+            if (Emoting)
             {
-                if (Emoting)
+                if (!GTPlayerTransform.UseNetRotation)
+                    GTPlayerTransform.UseNetRotation = true;
+
+                Transform localRig = VRRig.LocalRig.transform;
+
+                Transform hips      = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips/Spine1/Spine2");
+                Transform lowerHips = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips");
+
+                if (Constants.TrackingDebug)
                 {
-                    if (!GTPlayerTransform.UseNetRotation)
-                        GTPlayerTransform.UseNetRotation = true;
-                    
-                    Transform localRig = VRRig.LocalRig.transform;
+                    if (leftElbowVisualiser != null)
+                    {
+                        leftElbowVisualiser.transform.position =
+                                hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").position;
 
-                    Transform hips      = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips/Spine1/Spine2");
-                    Transform lowerHips = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips");
+                        leftElbowVisualiser.transform.rotation =
+                                hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").rotation;
+                    }
 
-                    leftElbowVisualiser.transform.position =
-                            hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").position;
+                    if (rightElbowVisualiser != null)
+                    {
+                        rightElbowVisualiser.transform.position =
+                                hips.transform.Find("RightShoulder/RightUpperArm/RightArm").position;
 
-                    rightElbowVisualiser.transform.position =
-                            hips.transform.Find("RightShoulder/RightUpperArm/RightArm").position;
-
-                    leftElbowVisualiser.transform.rotation =
-                            hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").rotation;
-
-                    rightElbowVisualiser.transform.rotation =
-                            hips.transform.Find("RightShoulder/RightUpperArm/RightArm").rotation;
-
-                    AssetBundleLoader.KyleRobot.transform.localScale = localRig.localScale;
-
-                    float scale       = localRig.localScale.x;
-                    float handYOffset = (1f - scale) * 0.25f;
-
-                    Quaternion zOffset = Quaternion.Euler(0f, 0f, 90f);
-
-                    Vector3 basePosition = hips.position - hips.right / 2.5f;
-                    
-                    Quaternion targetRotation = lowerHips.rotation * zOffset;
-
-                    RigUtils.Instance.RigPosition = basePosition;
-                    RigUtils.Instance.RigRotation = targetRotation;
-
-                    VRRig.LocalRig.transform.position = basePosition;
-                    VRRig.LocalRig.transform.rotation = targetRotation;
-
-                    Transform headBone = hips.Find("Neck/Head");
-                    VRRig.LocalRig.head.rigTarget.transform.rotation = headBone.rotation * zOffset;
-
-                    Transform leftHandBone  = hips.Find("LeftShoulder/LeftUpperArm/LeftArm/LeftHand");
-                    Transform rightHandBone = hips.Find("RightShoulder/RightUpperArm/RightArm/RightHand");
-
-                    VRRig.LocalRig.leftHand.rigTarget.transform.position =
-                            leftHandBone.position + Vector3.up * handYOffset;
-
-                    VRRig.LocalRig.leftHand.rigTarget.transform.rotation =
-                            leftHandBone.rotation * Quaternion.Euler(0, 0, 75);
-
-                    VRRig.LocalRig.rightHand.rigTarget.transform.position =
-                            rightHandBone.position + Vector3.up * handYOffset;
-
-                    VRRig.LocalRig.rightHand.rigTarget.transform.rotation =
-                            rightHandBone.rotation * Quaternion.Euler(180, 0, -75);
-
-                    float rightIndexCurl = GetFingerCurl(rightHandBone.transform.GetChild(0).GetChild(0));
-                    VRRig.LocalRig.rightIndex.calcT = rightIndexCurl;
-                    VRRig.LocalRig.rightIndex.LerpFinger(1f, false);
-
-                    float leftIndexCurl = GetFingerCurl(leftHandBone.transform.GetChild(0).GetChild(0));
-                    VRRig.LocalRig.leftIndex.calcT = leftIndexCurl;
-                    VRRig.LocalRig.leftIndex.LerpFinger(1f, false);
-
-                    float rightMiddleCurl = GetFingerCurl(rightHandBone.transform.GetChild(1).GetChild(0));
-                    VRRig.LocalRig.rightMiddle.calcT = rightMiddleCurl;
-                    VRRig.LocalRig.rightMiddle.LerpFinger(1f, false);
-
-                    float leftMiddleCurl = GetFingerCurl(leftHandBone.transform.GetChild(1).GetChild(0));
-                    VRRig.LocalRig.leftMiddle.calcT = leftMiddleCurl;
-                    VRRig.LocalRig.leftMiddle.LerpFinger(1f, false);
-
-                    float rightThumbCurl =
-                            GetFingerCurl(rightHandBone.transform.GetChild(4).GetChild(0).GetChild(0), true);
-
-                    VRRig.LocalRig.rightThumb.calcT = rightThumbCurl;
-                    VRRig.LocalRig.rightThumb.LerpFinger(1f, false);
-
-                    float leftThumbCurl =
-                            GetFingerCurl(leftHandBone.transform.GetChild(4).GetChild(0).GetChild(0), true);
-
-                    VRRig.LocalRig.leftThumb.calcT = leftThumbCurl;
-                    VRRig.LocalRig.leftThumb.LerpFinger(1f, false);
-                }
-                else
-                {
-                    leftElbowVisualiser.transform.position  = Vector3.zero;
-                    rightElbowVisualiser.transform.position = Vector3.zero;
+                        rightElbowVisualiser.transform.rotation =
+                                hips.transform.Find("RightShoulder/RightUpperArm/RightArm").rotation;
+                    }
                 }
 
-                EmoteSelect();
+                AssetBundleLoader.KyleRobot.transform.localScale = localRig.localScale;
+
+                float scale       = localRig.localScale.x;
+                float handYOffset = (1f - scale) * 0.25f;
+
+                Quaternion zOffset = Quaternion.Euler(0f, 0f, 90f);
+
+                Vector3 basePosition = hips.position - hips.right / 2.5f;
+
+                Quaternion targetRotation = lowerHips.rotation * zOffset;
+
+                RigUtils.Instance.RigPosition = basePosition;
+                RigUtils.Instance.RigRotation = targetRotation;
+
+                VRRig.LocalRig.transform.position = basePosition;
+                VRRig.LocalRig.transform.rotation = targetRotation;
+
+                Transform headBone = hips.Find("Neck/Head");
+                VRRig.LocalRig.head.rigTarget.transform.rotation = headBone.rotation * zOffset;
+
+                Transform leftHandBone  = hips.Find("LeftShoulder/LeftUpperArm/LeftArm/LeftHand");
+                Transform rightHandBone = hips.Find("RightShoulder/RightUpperArm/RightArm/RightHand");
+
+                VRRig.LocalRig.leftHand.rigTarget.transform.position =
+                        leftHandBone.position + Vector3.up * handYOffset;
+
+                VRRig.LocalRig.leftHand.rigTarget.transform.rotation =
+                        leftHandBone.rotation * Quaternion.Euler(0, 0, 75);
+
+                VRRig.LocalRig.rightHand.rigTarget.transform.position =
+                        rightHandBone.position + Vector3.up * handYOffset;
+
+                VRRig.LocalRig.rightHand.rigTarget.transform.rotation =
+                        rightHandBone.rotation * Quaternion.Euler(180, 0, -75);
+
+                float rightIndexCurl = GetFingerCurl(rightHandBone.transform.GetChild(0).GetChild(0));
+                VRRig.LocalRig.rightIndex.calcT = rightIndexCurl;
+                VRRig.LocalRig.rightIndex.LerpFinger(1f, false);
+
+                float leftIndexCurl = GetFingerCurl(leftHandBone.transform.GetChild(0).GetChild(0));
+                VRRig.LocalRig.leftIndex.calcT = leftIndexCurl;
+                VRRig.LocalRig.leftIndex.LerpFinger(1f, false);
+
+                float rightMiddleCurl = GetFingerCurl(rightHandBone.transform.GetChild(1).GetChild(0));
+                VRRig.LocalRig.rightMiddle.calcT = rightMiddleCurl;
+                VRRig.LocalRig.rightMiddle.LerpFinger(1f, false);
+
+                float leftMiddleCurl = GetFingerCurl(leftHandBone.transform.GetChild(1).GetChild(0));
+                VRRig.LocalRig.leftMiddle.calcT = leftMiddleCurl;
+                VRRig.LocalRig.leftMiddle.LerpFinger(1f, false);
+
+                float rightThumbCurl =
+                        GetFingerCurl(rightHandBone.transform.GetChild(4).GetChild(0).GetChild(0), true);
+
+                VRRig.LocalRig.rightThumb.calcT = rightThumbCurl;
+                VRRig.LocalRig.rightThumb.LerpFinger(1f, false);
+
+                float leftThumbCurl =
+                        GetFingerCurl(leftHandBone.transform.GetChild(4).GetChild(0).GetChild(0), true);
+
+                VRRig.LocalRig.leftThumb.calcT = leftThumbCurl;
+                VRRig.LocalRig.leftThumb.LerpFinger(1f, false);
             }
-            else
+            else if (Constants.TrackingDebug)
             {
-                Debug.Log("[EMOTE] KyleRobot is null");
+                leftElbowVisualiser.transform.position  = Vector3.zero;
+                rightElbowVisualiser.transform.position = Vector3.zero;
             }
+
+            EmoteSelect();
         }
         else
         {
-            Debug.Log("[EMOTE] ScriptHolder doesnt have AssetBundleLoader");
+            Debug.Log("[EMOTE] KyleRobot is null");
         }
     }
 

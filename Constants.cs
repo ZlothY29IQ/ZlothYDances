@@ -6,4 +6,5 @@ internal class Constants
     public const string Name       = "ZlothY Dances";
     public const string Version    = "1.1.1";
     public const string NetworkKey = "ZlothYDances";
+    public const bool TrackingDebug = false;
 }

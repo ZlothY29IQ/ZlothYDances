@@ -41,6 +41,7 @@ public class BepInPatch : BaseUnityPlugin
             gameObjections = new GameObject();
 
         gameObjections.name = "ColossalEmotes";
+        gameObjections.AddComponent<AssetBundleLoader>();
         gameObjections.AddComponent<Plugin>();
         DontDestroyOnLoad(gameObjections);
     }
