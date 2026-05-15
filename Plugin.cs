@@ -199,12 +199,6 @@ public class Plugin : MonoBehaviour
 
         GorillaTagger.OnPlayerSpawned(OnPlayerSpawned);
 
-        NetworkSystem.Instance.OnJoinedRoomEvent += () =>
-                                                    {
-                                                        if (!GTPlayerTransform.UseNetRotation)
-                                                            GTPlayerTransform.UseNetRotation = true;
-                                                    };
-
         Hashtable table = PhotonNetwork.LocalPlayer.CustomProperties;
         table.AddOrUpdate(Constants.NetworkKey, false);
         PhotonNetwork.LocalPlayer.SetCustomProperties(table);
@@ -276,9 +270,6 @@ public class Plugin : MonoBehaviour
         {
             if (Emoting)
             {
-                if (!GTPlayerTransform.UseNetRotation)
-                    GTPlayerTransform.UseNetRotation = true;
-
                 Transform localRig = VRRig.LocalRig.transform;
 
                 Transform hips      = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips/Spine1/Spine2");
