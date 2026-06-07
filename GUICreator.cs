@@ -9,22 +9,21 @@ internal class GUICreator : MonoBehaviour
 {
     public static (GameObject, Text) CreateTextGUI(string text, string name, TextAnchor alignment, Vector3 loctrans)
     {
-        GameObject HUDObj = new();
-        HUDObj.name = name;
+        GameObject hudObj = new(name);
 
-        Canvas canvas = HUDObj.AddComponent<Canvas>();
+        Canvas canvas = hudObj.AddComponent<Canvas>();
         canvas.renderMode  = RenderMode.WorldSpace;
         canvas.worldCamera = Camera.main;
 
-        HUDObj.AddComponent<CanvasScaler>().dynamicPixelsPerUnit = 10f;
-        HUDObj.AddComponent<GraphicRaycaster>();
+        hudObj.AddComponent<CanvasScaler>().dynamicPixelsPerUnit = 10f;
+        hudObj.AddComponent<GraphicRaycaster>();
 
-        RectTransform rectTransform = HUDObj.GetComponent<RectTransform>();
+        RectTransform rectTransform = hudObj.GetComponent<RectTransform>();
         rectTransform.sizeDelta     = new Vector2(5, 5);
-        HUDObj.transform.localScale = new Vector3(0.65f, 0.65f, 0.65f);
+        hudObj.transform.localScale = new Vector3(0.65f, 0.65f, 0.65f);
 
         GameObject menuTextObj = new();
-        menuTextObj.transform.SetParent(HUDObj.transform);
+        menuTextObj.transform.SetParent(hudObj.transform);
         Text menuText = menuTextObj.AddComponent<Text>();
         menuText.text             = text;
         menuText.fontSize         = 9;
@@ -40,10 +39,10 @@ internal class GUICreator : MonoBehaviour
         menuText.alignment                   = alignment;
 
         // Set the parent and adjust for camera position
-        HUDObj.transform.SetParent(Camera.main.transform, false);
-        HUDObj.transform.localPosition = new Vector3(0f, 0f, 1f);
-        HUDObj.transform.localRotation = Quaternion.identity;
+        hudObj.transform.SetParent(Camera.main.transform, false);
+        hudObj.transform.localPosition = new Vector3(0f, 0f, 1f);
+        hudObj.transform.localRotation = Quaternion.identity;
 
-        return (HUDObj, menuText);
+        return (hudObj, menuText);
     }
 }

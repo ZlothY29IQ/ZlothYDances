@@ -8,7 +8,6 @@ namespace ZlothYDances.Patches;
 public static class RigRotationEmotingPatch
 {
     private const float      RotationSpeed  = 10f;
-    public const  byte       EmoteEventCode = 189;
     public static Quaternion currentRotation;
     public static Transform  hips;
     public static Transform  lowerHips;
@@ -42,4 +41,4 @@ public static class RigRotationEmotingPatch
     }
 }
 
-// Old networking not needed - GTPlayerTransform.UseNetRotation = true;
+// Old networking not needed - GTPlayerTransform.UseNetRotation => true;

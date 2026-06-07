@@ -16,7 +16,6 @@ internal class OnGameInit
     }
 }
 
-[BepInIncompatibility("hansolo1000falcon.zlothy.hamburbur")]
 [BepInPlugin(Constants.Guid, Constants.Name, Constants.Version)]
 public class BepInPatch : BaseUnityPlugin
 {

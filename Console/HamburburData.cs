@@ -63,7 +63,7 @@ public class HamburburData : MonoBehaviour
                      {
                          SeralythUserCountWebsocket ??= new ClientWebSocket();
                          await SeralythUserCountWebsocket.ConnectAsync(
-                                 new Uri($"{SeralythServerWebsocket}?mod={Constants.NetworkKey}"),
+                                 new Uri($"{SeralythServerWebsocket}?mod={Uri.EscapeDataString(Constants.Name)}"),
                                  CancellationToken.None
                          );
                      });

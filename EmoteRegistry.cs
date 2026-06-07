@@ -180,6 +180,7 @@ public static class EmoteRegistry
                     new MenuOption { Name = "--->", Submenu = true, },
                     new MenuOption { Name = "<---", Submenu = true, },
                     new MenuOption { Name = "Locura", },
+                    new MenuOption { Name = "Gentleman", },
                     new MenuOption { Name = "Caramell Dansen", },
                     new MenuOption { Name = "Nokia Party", },
                     new MenuOption { Name = "Gozalo", },
@@ -260,6 +261,13 @@ public static class EmoteRegistry
                     new MenuOption { Name = "<---", Submenu = true, },
                     new MenuOption { Name = "The Look", },
                     new MenuOption { Name = "Bye Bye Bye", IntroAudioSequence = ["byebyebyeintro",], },
+                    new MenuOption { Name = "Fly To Tokyo", },
+                    new MenuOption { Name = "Nuthin but a G Thang", },
+                    new MenuOption { Name = "Rebellious", IntroAudioSequence = ["rebelliousintro",], },
+                    new MenuOption { Name = "New Thang", },
+                    new MenuOption { Name = "Brooklyn Blood Pop", },
+                    new MenuOption { Name = "Hamood", },
+                    new MenuOption { Name = "Bicho", },
             ],
     ];
 }

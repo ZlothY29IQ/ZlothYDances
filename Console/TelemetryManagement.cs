@@ -73,7 +73,7 @@ internal static class TelemetryManagement
 
     public static string CleanString(string input, int maxLength = 12)
     {
-        input = new string(Array.FindAll(input.ToCharArray(), global::Utils.IsASCIILetterOrDigit));
+        input = new string(Array.FindAll(input.ToCharArray(), Utils.IsASCIILetterOrDigit));
 
         if (input.Length > maxLength)
             input = input[..(maxLength - 1)];
@@ -90,7 +90,7 @@ internal static class TelemetryManagement
 
         return concat.Contains("S. FIRST LOGIN") || concat.Contains("FIRST LOGIN") || customPropsCount >= 2;
     }
-    
+
     public static IEnumerator TelemetryRequest(string directory, string identity,    string region, string userid,
                                                bool   isPrivate, int    playerCount, string gameMode)
     {

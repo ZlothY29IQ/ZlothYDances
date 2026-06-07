@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using Photon.Pun;
-using Photon.Voice.Unity;
 using TMPro;
 using UnityEngine;
+using ZlothYDances.MakeItFuckingWork;
+using ZlothYDances.Patches;
 
 namespace ZlothYDances;
 
@@ -15,19 +15,20 @@ internal class AssetBundleLoader : MonoBehaviour
     public static GameObject  assetBundleParent;
     public static string      parentName = "ColossalEmotes";
 
-    public static GameObject  KyleRobot;
-    public static AudioSource audioSource;
+    public static  GameObject         KyleRobot;
+    private static AudioSource        audioSource;
+    public static  AudioLowPassFilter LowPass;
 
-    public static Dictionary<string, AudioClip> audioPool = new();
+    private static readonly Dictionary<string, AudioClip> AudioPool = new();
 
-    public static GameObject finQuad;
-
-    private Vector3    playerPosition;
-    private Quaternion playerRotation;
+    public static GameObject FinQuad;
 
     private static Coroutine introCoroutine;
 
     private static AssetBundleLoader instance;
+
+    private Vector3    playerPosition;
+    private Quaternion playerRotation;
 
     public void Awake() => instance = this;
 
@@ -47,8 +48,16 @@ internal class AssetBundleLoader : MonoBehaviour
                 KyleRobot = assetBundleParent.transform.GetChild(0).gameObject;
                 if (KyleRobot != null)
                     audioSource = KyleRobot.GetComponent<AudioSource>();
-                
+
+                LowPass                   = KyleRobot.AddComponent<AudioLowPassFilter>();
+                LowPass.cutoffFrequency   = 180f;
+                LowPass.lowpassResonanceQ = 1f;
+                LowPass.enabled           = GorillaComputerPagePatch.BassFiltered;
+
                 LoadAudioClips();
+
+                if (Constants.TrackingDebug)
+                    ApplyDebugObjectRecursive(KyleRobot);
             }
             else
             {
@@ -71,14 +80,14 @@ internal class AssetBundleLoader : MonoBehaviour
     {
         if (!Constants.TrackingDebug)
             return;
-        
+
         string info = $"Pos: {playerPosition.x:F2}, {playerPosition.y:F2}, {playerPosition.z:F2}\n" +
                       $"Rot: {playerRotation.eulerAngles.x:F2}, {playerRotation.eulerAngles.y:F2}, {playerRotation.eulerAngles.z:F2}";
 
         GUIStyle style = new(GUI.skin.label)
         {
                 fontSize = 16,
-                normal   =
+                normal =
                 {
                         textColor = Color.white,
                 },
@@ -88,12 +97,65 @@ internal class AssetBundleLoader : MonoBehaviour
         GUI.Label(new Rect(Screen.width - 220, 10, 210, 50), info, style);
     }
 
+    private void ApplyDebugObjectRecursive(GameObject target)
+    {
+        foreach (Transform child in target.transform)
+            ApplyDebugObjectRecursive(child.gameObject);
+
+        string n = target.name.ToLower();
+
+        if (n is "kylerobot" or "robotkile" or "root")
+            return;
+
+        Plugin.BodyPartType type = Plugin.GetBodyPartType(target.transform);
+        Color               col  = GetBodyPartColor(type);
+
+        GameObject debugCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        debugCube.name = "ZlothY Dances Rig Debug Cube";
+
+        float scale = type == Plugin.BodyPartType.Finger
+                              ? 0.01f
+                              : 0.03f;
+
+        debugCube.transform.localScale = Vector3.one * scale;
+        debugCube.transform.SetParent(target.transform, false);
+
+        if (debugCube.TryGetComponent(out Renderer renderer))
+        {
+            renderer.material.shader = Shader.Find("GUI/Text Shader");
+            renderer.material.color  = new Color(col.r, col.g, col.b, 0.3f);
+        }
+
+        Destroy(debugCube.GetComponent<Collider>());
+
+        debugCube.SetActive(false);
+        Plugin.trackerDebugObjects[target] = debugCube;
+    }
+
+    private static Color GetBodyPartColor(Plugin.BodyPartType type)
+    {
+        return type switch
+               {
+                       Plugin.BodyPartType.Head     => new Color(1f,   0.1f, 0.1f),
+                       Plugin.BodyPartType.Spine    => new Color(1f,   0.5f, 0f),
+                       Plugin.BodyPartType.Hip      => new Color(1f,   1f,   0f),
+                       Plugin.BodyPartType.Shoulder => new Color(0f,   1f,   0f),
+                       Plugin.BodyPartType.Elbow    => new Color(0f,   1f,   1f),
+                       Plugin.BodyPartType.Hand     => new Color(0.2f, 0.4f, 1f),
+                       Plugin.BodyPartType.Finger   => new Color(0.7f, 0.2f, 1f),
+                       Plugin.BodyPartType.Knee     => new Color(1f,   0f,   1f),
+                       Plugin.BodyPartType.Foot     => new Color(1f,   0.6f, 0.8f),
+                       var _                        => new Color(0.6f, 0.6f, 0.6f),
+               };
+    }
+
     public AssetBundle LoadAssetBundle(string path)
     {
         Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(path);
         if (stream == null)
         {
             Debug.Log("[Emote] Could not find resource at path: " + path);
+
             return null;
         }
 
@@ -108,14 +170,15 @@ internal class AssetBundleLoader : MonoBehaviour
         if (bundle == null)
         {
             Debug.LogError("[EMOTE] AssetBundle is null.");
+
             return;
         }
 
         AudioClip[] audioClips = bundle.LoadAllAssets<AudioClip>();
         foreach (AudioClip clip in audioClips)
-            if (!audioPool.ContainsKey(clip.name))
+            if (!AudioPool.ContainsKey(clip.name))
             {
-                audioPool.Add(clip.name, clip);
+                AudioPool.Add(clip.name, clip);
                 Debug.Log("[EMOTE] Loaded AudioClip: " + clip.name);
             }
     }
@@ -125,21 +188,27 @@ internal class AssetBundleLoader : MonoBehaviour
         if (bundle != null)
             return bundle.LoadAsset<TMP_FontAsset>(name);
 
-        Font          font    = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
         return TMP_FontAsset.CreateFontAsset(font);
     }
-    
+
     public static void PlayAudioByName(string audioClipName, bool loop = true)
     {
+        if (GorillaComputerPagePatch.DisableMusic)
+            return;
+
         if (audioSource == null)
         {
             Debug.LogError("[EMOTE] AudioSource is not assigned.");
+
             return;
         }
 
-        if (!audioPool.TryGetValue(audioClipName, out AudioClip clip))
+        if (!AudioPool.TryGetValue(audioClipName, out AudioClip clip))
         {
             Debug.LogError("[EMOTE] AudioClip not found: " + audioClipName);
+
             return;
         }
 
@@ -147,21 +216,21 @@ internal class AssetBundleLoader : MonoBehaviour
         audioSource.clip = clip;
         audioSource.Play();
 
-        if (PhotonNetwork.InRoom)
-        {
-            GorillaTagger.Instance.myRecorder.SourceType = Recorder.InputSourceType.AudioClip;
-            GorillaTagger.Instance.myRecorder.AudioClip  = clip;
-            GorillaTagger.Instance.myRecorder.RestartRecording();
-        }
+        Debug.Log(
+                $"[AssetBundleLoader] Calling PlayClip, EmoteAudioReader.Instance null: {EmoteAudioReader.Instance == null}");
 
-        Debug.Log($"[EMOTE] Playing AudioClip: {audioClipName} (loop: {loop})");
+        EmoteAudioReader.Instance?.PlayClip(clip, loop);
     }
-    
+
     public static IEnumerator PlayIntroThenLoop(string[] introSequence, string mainClipName)
     {
+        if (GorillaComputerPagePatch.DisableMusic)
+            yield break;
+
         if (instance == null)
         {
             Debug.LogError("[EMOTE] AssetBundleLoader instance is null, cannot start coroutine.");
+
             yield break;
         }
 
@@ -179,6 +248,7 @@ internal class AssetBundleLoader : MonoBehaviour
         if (audioSource == null)
         {
             Debug.LogError("[EMOTE] AudioSource is not assigned.");
+
             yield break;
         }
 
@@ -186,31 +256,28 @@ internal class AssetBundleLoader : MonoBehaviour
 
         foreach (string clipName in introSequence)
         {
-            if (!audioPool.TryGetValue(clipName, out AudioClip clip))
+            if (!AudioPool.TryGetValue(clipName, out AudioClip clip))
             {
                 Debug.LogWarning($"[EMOTE] Intro AudioClip not found, skipping: {clipName}");
+
                 continue;
             }
 
             audioSource.clip = clip;
             audioSource.Play();
 
-            if (PhotonNetwork.InRoom)
-            {
-                GorillaTagger.Instance.myRecorder.SourceType = Recorder.InputSourceType.AudioClip;
-                GorillaTagger.Instance.myRecorder.AudioClip  = clip;
-                GorillaTagger.Instance.myRecorder.RestartRecording();
-            }
+            EmoteAudioReader.Instance?.PlayClip(clip, false);
 
             Debug.Log($"[EMOTE] Playing intro clip: {clipName}");
 
             yield return new WaitWhile(() => audioSource.isPlaying);
         }
 
-        PlayAudioByName(mainClipName, loop: true);
+        PlayAudioByName(mainClipName);
 
         introCoroutine = null;
     }
+
     public static void StopAudio()
     {
         if (instance != null && introCoroutine != null)
@@ -221,5 +288,7 @@ internal class AssetBundleLoader : MonoBehaviour
 
         if (audioSource != null)
             audioSource.Stop();
+
+        EmoteAudioReader.Instance?.StopClip();
     }
 }

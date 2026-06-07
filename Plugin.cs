@@ -56,6 +56,20 @@ public class MenuOption
 
 public class Plugin : MonoBehaviour
 {
+    public enum BodyPartType
+    {
+        Unknown,
+        Head,
+        Spine,
+        Hip,
+        Shoulder,
+        Elbow,
+        Hand,
+        Finger,
+        Knee,
+        Foot,
+    }
+
     public static  bool       Oculus;
     private static GameObject scriptHolder;
 
@@ -73,15 +87,16 @@ public class Plugin : MonoBehaviour
 
     public static bool Emoting;
 
+    public static Dictionary<GameObject, GameObject> trackerDebugObjects = new();
+
     public  Camera FirstPersonCamera;
     public  Camera ThirdPersonCamera;
     private bool   coolDown;
-    private bool   imToLazy;
 
-    private GameObject leftElbowVisualiser;
-    private GameObject rightElbowVisualiser;
-    private bool       wasRightTriggerPressed;
-    private float      x = -1;
+    private bool imToLazy;
+
+    private bool  wasRightTriggerPressed;
+    private float x = -1;
 
     private void Awake() => Instance = this;
 
@@ -234,31 +249,6 @@ public class Plugin : MonoBehaviour
     {
         FirstPersonCamera = GTPlayer.Instance.mainCamera;
         ThirdPersonCamera = GorillaTagger.Instance.thirdPersonCamera.transform.GetChild(0).GetComponent<Camera>();
-
-        if (Constants.TrackingDebug)
-        {
-            leftElbowVisualiser  = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            rightElbowVisualiser = GameObject.CreatePrimitive(PrimitiveType.Cube);
-
-            leftElbowVisualiser.transform.localScale  = Vector3.one * 0.03f;
-            rightElbowVisualiser.transform.localScale = Vector3.one * 0.03f;
-
-            if (leftElbowVisualiser.TryGetComponent(out Renderer leftRend))
-            {
-                leftRend.material.shader = Shader.Find("GUI/Text Shader");
-                leftRend.material.color  = new Color(Color.darkGreen.r, Color.darkGreen.g, Color.darkGreen.b, 0.3f);
-            }
-
-            if (rightElbowVisualiser.TryGetComponent(out Renderer rightRend))
-            {
-                rightRend.material.shader = Shader.Find("GUI/Text Shader");
-                rightRend.material.color =
-                        new Color(Color.darkGoldenRod.r, Color.darkGoldenRod.g, Color.darkGoldenRod.b, 0.3f);
-            }
-
-            if (leftElbowVisualiser.TryGetComponent(out Collider leftCol)) leftCol.Destroy();
-            if (rightElbowVisualiser.TryGetComponent(out Collider rightCol)) rightCol.Destroy();
-        }
     }
 
     public void Update()
@@ -274,27 +264,6 @@ public class Plugin : MonoBehaviour
 
                 Transform hips      = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips/Spine1/Spine2");
                 Transform lowerHips = AssetBundleLoader.KyleRobot.transform.Find("ROOT/Hips");
-
-                if (Constants.TrackingDebug)
-                {
-                    if (leftElbowVisualiser != null)
-                    {
-                        leftElbowVisualiser.transform.position =
-                                hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").position;
-
-                        leftElbowVisualiser.transform.rotation =
-                                hips.transform.Find("LeftShoulder/LeftUpperArm/LeftArm").rotation;
-                    }
-
-                    if (rightElbowVisualiser != null)
-                    {
-                        rightElbowVisualiser.transform.position =
-                                hips.transform.Find("RightShoulder/RightUpperArm/RightArm").position;
-
-                        rightElbowVisualiser.transform.rotation =
-                                hips.transform.Find("RightShoulder/RightUpperArm/RightArm").rotation;
-                    }
-                }
 
                 AssetBundleLoader.KyleRobot.transform.localScale = localRig.localScale;
 
@@ -358,11 +327,6 @@ public class Plugin : MonoBehaviour
 
                 VRRig.LocalRig.leftThumb.calcT = leftThumbCurl;
                 VRRig.LocalRig.leftThumb.LerpFinger(1f, false);
-            }
-            else if (Constants.TrackingDebug)
-            {
-                leftElbowVisualiser.transform.position  = Vector3.zero;
-                rightElbowVisualiser.transform.position = Vector3.zero;
             }
 
             EmoteSelect();
@@ -436,6 +400,8 @@ public class Plugin : MonoBehaviour
 
 #region Emote Handling
 
+    private bool hasRotated;
+
     public void Emote(string emoteName, string[] introAudioSequence = null)
     {
         if (AssetBundleLoader.KyleRobot == null)
@@ -448,13 +414,23 @@ public class Plugin : MonoBehaviour
         if (RigUtils.Instance.IsRigEnabled)
             RigUtils.Instance.ToggleRig(false);
 
-        previousPos                                         = GorillaTagger.Instance.transform.position;
-        GorillaTagger.Instance.rigidbody.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+        previousPos = GorillaTagger.Instance.transform.position;
 
         AssetBundleLoader.KyleRobot.transform.position =
-                VRRig.LocalRig.transform.position + new Vector3(0f, -1.42f, 0f);
+                VRRig.LocalRig.transform.position +
+                new Vector3(0f, GorillaComputerPagePatch.UpsideDown ? 1.42f : -1.42f, 0f);
 
-        AssetBundleLoader.KyleRobot.transform.rotation = VRRig.LocalRig.transform.rotation;
+        if (!GorillaComputerPagePatch.UpsideDown || hasRotated)
+        {
+            AssetBundleLoader.KyleRobot.transform.rotation = VRRig.LocalRig.transform.rotation;
+        }
+        else
+        {
+            AssetBundleLoader.KyleRobot.transform.rotation =
+                    VRRig.LocalRig.transform.rotation * Quaternion.Euler(0f, 0f, 180f);
+
+            hasRotated = true;
+        }
 
         if (animator == null)
         {
@@ -470,12 +446,16 @@ public class Plugin : MonoBehaviour
         animator.Play(emoteName);
 
         // Plays the intro audio (if any are present), then loop the main clip
-        if (introAudioSequence != null && introAudioSequence.Length > 0)
+        if (introAudioSequence is { Length: > 0, })
             StartCoroutine(AssetBundleLoader.PlayIntroThenLoop(introAudioSequence, emoteName));
         else
             AssetBundleLoader.PlayAudioByName(emoteName);
 
         Emoting = true;
+
+        if (Constants.TrackingDebug && trackerDebugObjects.Count > 0)
+            foreach (GameObject debugObject in trackerDebugObjects.Values)
+                debugObject.SetActive(true);
 
         Hashtable table = PhotonNetwork.LocalPlayer.CustomProperties;
         table.AddOrUpdate(Constants.NetworkKey, true);
@@ -491,23 +471,21 @@ public class Plugin : MonoBehaviour
         table.AddOrUpdate(Constants.NetworkKey, false);
         PhotonNetwork.LocalPlayer.SetCustomProperties(table);
 
-        Emoting = false;
+        Emoting    = false;
+        hasRotated = false;
+
+        if (Constants.TrackingDebug && trackerDebugObjects.Count > 0)
+            foreach (GameObject debugObject in trackerDebugObjects.Values)
+                debugObject.SetActive(false);
 
         if (!RigUtils.Instance.IsRigEnabled)
             RigUtils.Instance.ToggleRig(true);
 
         GorillaTagger.Instance.transform.position = previousPos;
-        Camera.main.transform.rotation            = Quaternion.Euler(0f, 0f, 0f);
 
         animator.Play("idle");
 
         AssetBundleLoader.StopAudio();
-
-        if (!PhotonNetwork.InRoom)
-            return;
-
-        GorillaTagger.Instance.myRecorder.SourceType = Recorder.InputSourceType.Microphone;
-        GorillaTagger.Instance.myRecorder.RestartRecording();
     }
 
     public void EmoteSelect()
@@ -673,6 +651,44 @@ public class Plugin : MonoBehaviour
             angle -= 360f;
 
         return Mathf.InverseLerp(0f, 90f, Mathf.Abs(angle));
+    }
+
+    public static BodyPartType GetBodyPartType(Transform t)
+    {
+        string n = t.name.ToLower();
+
+        if (n.Contains("head"))
+            return BodyPartType.Head;
+
+        if (n.Contains("spine") || n.Contains("chest") || n.Contains("torso"))
+            return BodyPartType.Spine;
+
+        if (n.Contains("hip") || n.Contains("pelvis") || n.Contains("root"))
+            return BodyPartType.Hip;
+
+        if (n.Contains("shoulder"))
+            return BodyPartType.Shoulder;
+
+        if (n.Contains("elbow") || n.Contains("upperarm") || n.Contains("forearm") || n.Contains("arm"))
+            return BodyPartType.Elbow;
+
+        if (n.Contains("hand") || n.Contains("wrist"))
+            return BodyPartType.Hand;
+
+        if (n.Contains("finger") || n.Contains("thumb") || n.Contains("index") ||
+            n.Contains("middle") || n.Contains("ring")  || n.Contains("pinky"))
+            return BodyPartType.Finger;
+
+        if (n.Contains("knee") || n.Contains("leg") || n.Contains("calf") || n.Contains("thigh"))
+            return BodyPartType.Knee;
+
+        if (n.Contains("foot") || n.Contains("ankle") || n.Contains("toe"))
+            return BodyPartType.Foot;
+
+        if (n.Contains("hips") || n.Contains("spine1") || n.Contains("spine2"))
+            return BodyPartType.Spine;
+
+        return BodyPartType.Unknown;
     }
 
 #endregion
